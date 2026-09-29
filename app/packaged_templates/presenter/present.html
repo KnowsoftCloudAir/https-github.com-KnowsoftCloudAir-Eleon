@@ -592,7 +592,14 @@
   };
 
   function fullSlideText(s) {
-    return [s.title, s.body, s.extra, s.notes].filter(Boolean).join('. ').replace(/\s+/g,' ').trim();
+    if (!s) return '';
+    // Prefer dedicated Eleon script / notes so probe reads the full prepared talk
+    const script = (s.eleonScript || s.eleon_script || s.notes || '').trim();
+    if (script) return script;
+    const title = (s.title || '').trim();
+    const body = (s.body || '').trim();
+    if (title && body) return title + '. ' + body;
+    return title || body || '';
   }
   function escapeHtml(t){ return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function wordSpanHtml(text, wa) {
@@ -855,6 +862,10 @@
     return new Promise((resolve) => {
       const done = () => {
         speaking = false;
+        try {
+          var fp = document.getElementById('floatProbe');
+          if (fp) fp.classList.remove('speaking-glow');
+        } catch (e) {}
         if (musicOn && bgMusic) bgMusic.volume = 0.12;
         if (onend) onend();
         resolve();
@@ -867,20 +878,66 @@
       const myToken = speakToken;
       speaking = true;
       if (musicOn && bgMusic) bgMusic.volume = 0.04;
-      const clean = String(text).replace(/\s+/g,' ').trim().slice(0, 3500);
-      try { if (typeof broadcastSpeak === 'function') broadcastSpeak(clean); } catch(e) {}
-      const u = new SpeechSynthesisUtterance(clean);
-      u.lang = document.getElementById('langSelect').value || 'en-US';
-      u.rate = 0.92;
-      if (selectedVoice) u.voice = selectedVoice;
-      u.onend = () => { if (myToken === speakToken) done(); };
-      u.onerror = () => { if (myToken === speakToken) done(); };
-      try{ var _fp=document.getElementById('floatProbe'); if(_fp) _fp.classList.add('speaking-glow'); }catch(e){}
-      speechSynthesis.speak(u);
+      // Full note — do not truncate mid-talk; chunk for browser limits
+      const clean = String(text).replace(/\s+/g, ' ').trim();
+      try { if (typeof broadcastSpeak === 'function') broadcastSpeak(clean.slice(0, 500)); } catch (e) {}
+      try {
+        var _fp = document.getElementById('floatProbe');
+        if (_fp) _fp.classList.add('speaking-glow');
+      } catch (e) {}
+
+      // Split into sentence chunks (~180–220 chars) so speech never cuts off halfway
+      const chunks = [];
+      let buf = '';
+      const parts = clean.split(/(?<=[.!?])\s+/);
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if ((buf + ' ' + part).trim().length > 200 && buf) {
+          chunks.push(buf.trim());
+          buf = part;
+        } else {
+          buf = (buf ? buf + ' ' : '') + part;
+        }
+      }
+      if (buf.trim()) chunks.push(buf.trim());
+      if (!chunks.length) chunks.push(clean.slice(0, 500) || ' ');
+
+      let ci = 0;
       const keepAlive = setInterval(() => {
         if (!speaking || myToken !== speakToken) { clearInterval(keepAlive); return; }
-        if (window.speechSynthesis.speaking) { try { speechSynthesis.pause(); speechSynthesis.resume(); } catch(e){} }
-      }, 9000);
+        if (window.speechSynthesis.speaking) {
+          try { speechSynthesis.pause(); speechSynthesis.resume(); } catch (e) {}
+        }
+      }, 8000);
+
+      function speakNextChunk() {
+        if (myToken !== speakToken) { clearInterval(keepAlive); done(); return; }
+        if (ci >= chunks.length) {
+          clearInterval(keepAlive);
+          done();
+          return;
+        }
+        const u = new SpeechSynthesisUtterance(chunks[ci]);
+        u.lang = (document.getElementById('langSelect') && document.getElementById('langSelect').value) || 'en-US';
+        u.rate = 0.92;
+        if (selectedVoice) u.voice = selectedVoice;
+        u.onend = () => {
+          ci++;
+          // tiny gap between chunks so engine stays stable
+          setTimeout(speakNextChunk, 120);
+        };
+        u.onerror = () => {
+          ci++;
+          setTimeout(speakNextChunk, 200);
+        };
+        try {
+          speechSynthesis.speak(u);
+        } catch (e) {
+          clearInterval(keepAlive);
+          done();
+        }
+      }
+      speakNextChunk();
     });
   }
   function stopSpeaking(){ speakToken++; speaking=false; try{speechSynthesis.cancel()}catch(e){} if(musicOn&&bgMusic) bgMusic.volume=0.12; }
@@ -936,40 +993,25 @@
   function scheduleNextAfterSpeech() {
     if (!autoplay) return;
     if (autoChain) clearTimeout(autoChain);
-    // After speech: 5s quiet pause (voice off), then 4s voice window, then continue
+    // After full note is spoken, wait 5 seconds, then next slide
+    const waitMs = 5000;
     autoChain = setTimeout(async () => {
       if (!autoplay) return;
-      // voice window
-      const wasVoice = voiceEnabled;
-      if (!voiceEnabled) {
-        // temporary listen without full toggle UI noise
-        try { startListenQuiet(); } catch(e) {}
-      }
-      const st = document.getElementById('probeStatus');
-      if (st) st.textContent = 'listening for commands (4s)…';
-      await new Promise(r => setTimeout(r, listenWindow));
-      if (!autoplay) return;
-      if (!wasVoice) stopListen();
-      if (st) st.textContent = '';
       if (idx >= SLIDES.length - 1) {
-        await startClosing();
+        autoplay = false;
+        try {
+          document.getElementById('autoBtn').textContent = '▶ Auto-play';
+        } catch (e) {}
         return;
       }
-      stopSpeaking();
-      // ensure voice off while presenting
-      if (voiceEnabled) { /* keep user preference */ }
-      else { stopListen(); }
-      idx++;
+      idx += 1;
       render();
-      // while reading: force voice off to avoid interruption
-      const keepVoice = voiceEnabled;
-      if (keepVoice) { voiceEnabled = false; stopListen(); }
+      try { if (typeof syncLiveIndex === 'function') syncLiveIndex(); } catch (e) {}
       await readCurrent();
-      probeRunOut();
-      if (keepVoice) { voiceEnabled = true; startListen(); }
       scheduleNextAfterSpeech();
-    }, paceGap);
+    }, waitMs);
   }
+
   function startListenQuiet(){
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR || !window.isSecureContext) return;
@@ -1253,7 +1295,30 @@
     const st = document.getElementById('stage');
     if (st) st.innerHTML = '<div style="padding:2rem;color:#fbbf24;text-align:center"><h1 style="font-size:1.5rem">No slides yet</h1><p style="color:#94a3b8">Add slides in the editor, then Present again.</p><a href="#" onclick="history.back();return false" style="color:#5eead4">Back to editor</a></div>';
   } else {
-    try { render(); } catch(e) { console.error(e); }
+  
+  // Touch / finger swipe on stage → next / previous slide
+  (function () {
+    let tx = 0, ty = 0, t0 = 0;
+    const stage = document.getElementById('stage') || document.body;
+    stage.addEventListener('touchstart', function (e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      tx = e.changedTouches[0].clientX;
+      ty = e.changedTouches[0].clientY;
+      t0 = Date.now();
+    }, { passive: true });
+    stage.addEventListener('touchend', function (e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      const dx = e.changedTouches[0].clientX - tx;
+      const dy = e.changedTouches[0].clientY - ty;
+      const dt = Date.now() - t0;
+      if (dt > 800) return;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      if (dx < 0) go(1);   // swipe left → next
+      else go(-1);        // swipe right → previous
+    }, { passive: true });
+  })();
+
+  try { render(); } catch(e) { console.error(e); }
   }
   document.addEventListener('DOMContentLoaded', function(){ try { render(); } catch(e) {} });
   // Prefer auto voice if secure context

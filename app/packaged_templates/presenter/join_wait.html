@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Waiting for host — Eleon</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+  <div class="text-center space-y-3">
+    <div class="mx-auto h-12 w-12 rounded-full border-2 border-teal-400 border-t-transparent animate-spin"></div>
+    <h1 class="text-xl font-bold">Waiting for host…</h1>
+    <p class="text-sm text-slate-400" id="st">Checking every second</p>
+  </div>
+  <script>
+  const token = {{ token|tojson }}, vid = {{ vid|tojson }};
+  async function poll(){
+    try {
+      const r = await fetch(`/api/join/${token}/viewer/${vid}`);
+      const j = await r.json();
+      if (j.status === 'admitted') location.replace(`/join/${token}/watch?vid=${vid}`);
+      else if (j.status === 'denied') document.getElementById('st').textContent = 'Host declined this request.';
+    } catch(e) {}
+  }
+  poll(); setInterval(poll, 1000);
+  </script>
+</body>
+</html>

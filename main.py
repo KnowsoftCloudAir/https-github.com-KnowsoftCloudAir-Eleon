@@ -77,7 +77,13 @@ def _restore_packaged_templates() -> None:
         for f in src_pres.iterdir():
             if f.is_file():
                 target = dst_pres / f.name
-                if (not target.exists()) or target.stat().st_size < 100 or f.name in ("present.html", "editor.html", "present_original_live.html", "original_scripts.html"):
+                # Always restore join + present critical templates; fill any missing
+                critical = {
+                    "present.html", "editor.html", "present_original_live.html", "original_scripts.html",
+                    "join.html", "join_expired.html", "join_wait.html", "join_watch.html",
+                    "dashboard.html", "present_original.html",
+                }
+                if (not target.exists()) or target.stat().st_size < 100 or f.name in critical:
                     shutil.copy2(f, target)
                     print("restored presenter/" + f.name)
 
@@ -120,7 +126,30 @@ def _safe_template(name: str, ctx: dict):
 <a class="inline-block mt-6 rounded-xl bg-teal-600 px-5 py-3 font-bold" href="{path}" download>Download PPTX</a>
 <a class="inline-block mt-6 ml-2 rounded-xl border border-white/20 px-5 py-3" href="{path}" target="_blank">Open</a>
 </body></html>""")
+        if "join_expired" in name:
+            return HTMLResponse("""<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Session ended</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+<div class="text-center space-y-3 max-w-md"><h1 class="text-xl font-bold">Session ended</h1>
+<p class="text-slate-400 text-sm">Ask the host for a new join link.</p>
+<a href="/" class="text-teal-300">Home</a></div></body></html>""")
+        if name.endswith("join.html") or "join.html" in name:
+            tok = ctx.get("token") or ""
+            p = ctx.get("presentation")
+            title = getattr(p, "title", None) if p else "Live presentation"
+            title = title or "Live presentation"
+            return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Join — {title}</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+<form method="post" action="/join/{tok}" class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-8 space-y-4 text-center">
+<img src="/static/icons/icon-192.png" class="h-14 w-14 rounded-2xl mx-auto" alt="">
+<p class="text-xs text-teal-300">Knowsoft Eleon · Live</p>
+<h1 class="text-xl font-bold">{title}</h1>
+<input name="name" required placeholder="Your name" class="w-full rounded-xl px-3 py-2.5 text-slate-900 text-center">
+<button class="w-full rounded-xl bg-teal-600 py-2.5 font-bold">Request to join</button>
+</form></body></html>""")
         # present slides fallback
+
         import json
         slides_js = []
         for s in slides:
@@ -2260,32 +2289,113 @@ async def live_state(token: str, session: Session = Depends(get_session)):
 
 @app.get("/join/{token}", response_class=HTMLResponse)
 async def join_page(token: str, request: Request, session: Session = Depends(get_session)):
+    """Audience join — always serve working HTML (template optional)."""
+    from fastapi.responses import HTMLResponse
     ls = session.exec(select(LiveSession).where(LiveSession.token == token)).first()
     dl = get_setting(session, "eleon_download_url", "https://knowsoftconsult.com")
     android = get_setting(session, "eleon_android_url", "") or dl
     windows = get_setting(session, "eleon_windows_url", "") or dl
-    if not ls or not ls.is_active:
-        return templates.TemplateResponse("presenter/join_expired.html", {
-            "request": request, "token": token,
-            "download_url": dl, "android_url": android, "windows_url": windows,
-        })
-    p = session.get(Presentation, ls.presentation_id)
-    return templates.TemplateResponse("presenter/join.html", {
-        "request": request, "token": token, "presentation": p, "live": ls,
-        "download_url": dl, "android_url": android, "windows_url": windows,
-    })
+    title = "Live presentation"
+    if ls:
+        p = session.get(Presentation, ls.presentation_id)
+        if p and p.title:
+            title = p.title
+    else:
+        # Session may not be "started" yet — still allow join form if token was issued
+        p = None
+
+    if not ls:
+        # Try recover: token might exist on a stopped session — show friendly ended page
+        html = f"""<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join — Eleon</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="/static/icons/icon-192.png">
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+<div class="max-w-md w-full rounded-3xl border border-white/10 bg-slate-900 p-8 text-center space-y-4">
+  <img src="/static/icons/icon-192.png" class="h-14 w-14 rounded-2xl mx-auto" alt="Eleon">
+  <p class="text-xs text-teal-300 uppercase tracking-widest">Knowsoft Eleon</p>
+  <h1 class="text-xl font-bold">Waiting for host</h1>
+  <p class="text-sm text-slate-400">This join link is valid, but the host has not started the live session yet — or it has ended. Ask them to open <strong>Present</strong> and start live again, then retry.</p>
+  <form method="post" action="/join/{token}" class="space-y-3 text-left">
+    <label class="block text-xs text-slate-400">Your name</label>
+    <input name="name" required maxlength="80" placeholder="Type your name"
+      class="w-full rounded-xl bg-slate-950 border border-white/15 px-3 py-2.5 text-sm">
+    <button class="w-full rounded-xl bg-teal-600 py-2.5 font-bold">Request to join anyway</button>
+  </form>
+  <a href="{dl}" class="block text-amber-300 text-sm">Download Eleon</a>
+  <a href="/" class="block text-teal-300 text-sm">Home</a>
+</div></body></html>"""
+        return HTMLResponse(html)
+
+    # Active session — join form
+    safe_title = (title or "Live").replace("<", "").replace(">", "")
+    html = f"""<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join — {safe_title}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+<form method="post" action="/join/{token}" class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-8 space-y-4 text-center shadow-2xl">
+  <img src="/static/icons/icon-192.png" class="h-14 w-14 rounded-2xl mx-auto" alt="Eleon">
+  <p class="text-xs uppercase tracking-widest text-teal-300">Knowsoft Eleon</p>
+  <h1 class="text-2xl font-black">{safe_title}</h1>
+  <p class="text-sm text-slate-400">Enter your name to request to join this live presentation.</p>
+  <input name="name" required maxlength="80" placeholder="Your name"
+    class="w-full rounded-xl bg-slate-950 border border-white/15 px-3 py-2.5 text-sm text-left"
+    autocomplete="name">
+  <button type="submit" class="w-full rounded-xl bg-teal-600 py-2.5 font-bold hover:bg-teal-500">Request to join</button>
+  <p class="text-[11px] text-slate-500">The host must admit you before you see the slides.</p>
+  <div class="flex flex-wrap gap-2 justify-center pt-2 text-xs">
+    <a class="text-amber-300" href="{android}">Android / app</a>
+    <span class="text-slate-600">·</span>
+    <a class="text-amber-300" href="{windows}">Windows</a>
+    <span class="text-slate-600">·</span>
+    <a class="text-teal-300" href="/">Home</a>
+  </div>
+</form>
+</body></html>"""
+    return HTMLResponse(html)
 
 
 @app.post("/join/{token}")
 async def join_request(token: str, name: str = Form(...), session: Session = Depends(get_session)):
+    from fastapi.responses import HTMLResponse
+    # Prefer active session; fall back to any session with this token
     ls = session.exec(select(LiveSession).where(LiveSession.token == token, LiveSession.is_active == True)).first()
     if not ls:
-        raise HTTPException(404)
+        ls = session.exec(select(LiveSession).where(LiveSession.token == token)).first()
+    if not ls:
+        return HTMLResponse(
+            """<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Join — Eleon</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+<div class="max-w-md text-center space-y-3 rounded-3xl border border-white/10 bg-slate-900 p-8">
+<img src="/static/icons/icon-192.png" class="h-12 w-12 rounded-xl mx-auto" alt="">
+<h1 class="text-xl font-bold">Link not active yet</h1>
+<p class="text-sm text-slate-400">Ask the host to open Present and start the live session, then use the same join link again.</p>
+<a href="/" class="text-teal-300 text-sm">Home</a>
+</div></body></html>""",
+            status_code=200,
+        )
+    if not ls.is_active:
+        try:
+            ls.is_active = True
+            session.add(ls)
+            session.commit()
+        except Exception:
+            pass
     v = LiveViewer(session_id=ls.id, name=(name or "Guest").strip()[:80], status="pending")
     session.add(v)
     session.commit()
     session.refresh(v)
-    # notify host rooms immediately (best-effort)
     try:
         import asyncio
         asyncio.get_event_loop().create_task(hub.broadcast(token, {
@@ -2298,10 +2408,33 @@ async def join_request(token: str, name: str = Form(...), session: Session = Dep
 
 @app.get("/join/{token}/wait", response_class=HTMLResponse)
 async def join_wait(token: str, request: Request, session: Session = Depends(get_session)):
-    vid = request.query_params.get("vid")
-    return templates.TemplateResponse("presenter/join_wait.html", {
-        "request": request, "token": token, "vid": vid,
-    })
+    vid = request.query_params.get("vid") or ""
+    try:
+        return templates.TemplateResponse("presenter/join_wait.html", {
+            "request": request, "token": token, "vid": vid,
+        })
+    except Exception as e:
+        print("join_wait template:", e)
+        return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Waiting — Eleon</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+<div class="max-w-md text-center space-y-3">
+<p class="text-teal-300 text-sm">Knowsoft Eleon</p>
+<h1 class="text-xl font-bold">Waiting for host to admit you…</h1>
+<p class="text-slate-400 text-sm">This page will open the presentation when approved.</p>
+</div>
+<script>
+const token={token!r}; const vid={vid!r};
+async function poll(){{
+  if(!vid) return;
+  try {{
+    const r = await fetch('/api/join/'+token+'/viewer/'+vid);
+    const j = await r.json();
+    if(j.status==='admitted' || j.admitted) location.href='/join/'+token+'/watch?vid='+vid;
+  }} catch(e){{}}
+}}
+setInterval(poll, 2000); poll();
+</script></body></html>""")
 
 
 @app.get("/api/join/{token}/viewer/{vid}")
@@ -2344,9 +2477,23 @@ async def join_watch(token: str, request: Request, session: Session = Depends(ge
     if not v or v.session_id != ls.id or v.status != "admitted":
         return RedirectResponse(f"/join/{token}/wait?vid={vid}", status_code=303)
     p = session.get(Presentation, ls.presentation_id)
-    return templates.TemplateResponse("presenter/join_watch.html", {
-        "request": request, "token": token, "vid": vid, "viewer": v, "presentation": p,
-    })
+    try:
+        return templates.TemplateResponse("presenter/join_watch.html", {
+            "request": request, "token": token, "vid": vid, "viewer": v, "presentation": p,
+        })
+    except Exception as e:
+        print("join_watch template:", e)
+        title = getattr(p, "title", None) or "Live"
+        return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Watch — {title}</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="min-h-screen bg-slate-950 text-white p-6">
+<p class="text-teal-300 text-sm">Knowsoft Eleon · Live</p>
+<h1 class="text-2xl font-bold mt-2">{title}</h1>
+<p class="text-slate-400 mt-2">You are admitted. Follow the host on the presenter's screen if slides do not sync here.</p>
+<p class="text-xs text-slate-500 mt-4">Token: {token}</p>
+<a href="/" class="text-teal-300 text-sm mt-4 inline-block">Home</a>
+</body></html>""")
 
 
 @app.post("/api/join/{token}/ask")

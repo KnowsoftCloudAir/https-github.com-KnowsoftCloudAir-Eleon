@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join — {{ presentation.title if presentation else 'Live' }}</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Eleon">
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+  <form method="post" action="/join/{{ token }}" class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-8 space-y-4 text-center">
+    <img src="/static/icons/icon-192.png" class="h-14 w-14 rounded-2xl mx-auto" alt="">
+    <p class="text-xs uppercase tracking-widest text-teal-300">Knowsoft Eleon · Live</p>
+    <h1 class="text-xl font-bold">{{ presentation.title if presentation else 'Join presentation' }}</h1>
+    <p class="text-sm text-slate-400">Enter your name. The host will admit you to watch and ask questions.</p>
+    <input name="name" required placeholder="Your name" class="w-full rounded-xl px-3 py-2.5 text-slate-900 text-center">
+    <button class="w-full rounded-xl bg-teal-600 py-2.5 font-bold">Request to join</button>
+    <a id="openApp" href="eleon://join/{{ token }}" class="block text-sm text-teal-300 mt-2">Open in Eleon app (if installed)</a>
+    <a id="dl" href="#" target="_blank" class="block text-sm text-amber-300 mt-1">Download Eleon for better experience</a>
+    <script>
+    fetch('/api/download-links').then(r=>r.json()).then(j=>{
+      const a=document.getElementById('dl'); if(j.download_url) a.href=j.download_url;
+      const o=document.getElementById('openApp'); if(j.app_scheme) o.href=j.app_scheme+'{{ token }}';
+    });
+    </script>
+  </form>
+</body>
+</html>
