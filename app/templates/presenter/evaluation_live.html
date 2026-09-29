@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evaluation point — Eleon</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 30% 20%,#134e4a,transparent 50%),#020617;overflow:hidden;}
+    .bubble{position:absolute;border-radius:999px;padding:.5rem 1rem;color:#fff;font-weight:600;animation:pop .6s ease;box-shadow:0 8px 30px rgba(0,0,0,.35);max-width:14rem;text-align:center;}
+    @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  </style>
+</head>
+<body>
+  <div class="fixed top-4 left-4 right-4 flex justify-between items-center z-10">
+    <div>
+      <p class="text-teal-300 text-xs uppercase tracking-widest">Evaluation point</p>
+      <h1 class="text-white text-2xl font-black">{{ presentation.title }}</h1>
+    </div>
+    <div class="text-right">
+      <p class="text-white text-4xl font-black" id="count">0</p>
+      <p class="text-slate-400 text-sm">submitted</p>
+    </div>
+  </div>
+  <div id="stage" class="absolute inset-0"></div>
+  <script>
+  const token = {{ eval.token|tojson }};
+  const seen = new Set();
+  const colors = ['#14b8a6','#6366f1','#f59e0b','#ec4899','#8b5cf6','#22d3ee','#84cc16'];
+  async function poll(){
+    const r = await fetch('/api/evaluation/'+token+'/responses');
+    const j = await r.json();
+    document.getElementById('count').textContent = (j.items||[]).length;
+    (j.items||[]).forEach((it,i) => {
+      const key = it.email+'|'+it.name+'|'+it.at;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const el = document.createElement('div');
+      el.className = 'bubble';
+      const size = Math.max(70, 160 - seen.size * 4);
+      el.style.width = size+'px';
+      el.style.height = size+'px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.flexDirection = 'column';
+      el.style.fontSize = size > 120 ? '14px' : '11px';
+      el.style.background = colors[seen.size % colors.length];
+      el.style.left = (8 + Math.random()*75)+'%';
+      el.style.top = (15 + Math.random()*65)+'%';
+      el.innerHTML = `<span>${it.name||'Guest'}</span><span style="font-weight:400;opacity:.85;font-size:10px">${it.email||''}</span>`;
+      document.getElementById('stage').appendChild(el);
+    });
+  }
+  poll(); setInterval(poll, 3000);
+  </script>
+</body>
+</html>

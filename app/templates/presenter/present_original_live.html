@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dramatic present — {{ presentation.title }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin:0; background:#020617; color:#e2e8f0; font-family: system-ui, sans-serif; overflow:hidden; }
+    header { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:.6rem 1rem; border-bottom:1px solid rgba(255,255,255,.1); background:rgba(15,23,42,.9); position:relative; z-index:20; }
+    header button, header a { border:0; border-radius:.75rem; padding:.35rem .85rem; font-weight:700; cursor:pointer; color:#fff; background:#334155; text-decoration:none; font-size:.85rem; }
+    .btn-teal { background:#0d9488 !important; }
+    .btn-amber { background:#b45309 !important; }
+    .btn-glow { background:#4c1d95 !important; box-shadow:0 0 20px rgba(167,139,250,.5); }
+    #stage { height: calc(100vh - 3.2rem); display:flex; align-items:center; justify-content:center; padding:1.5rem; position:relative; perspective: 1200px; }
+    .slide-card {
+      max-width: min(900px, 94vw); width:100%; border-radius:1.5rem; padding: clamp(1.5rem, 3vw, 2.5rem);
+      background: linear-gradient(145deg, rgba(15,23,42,.92), rgba(30,41,59,.88));
+      border: 1px solid rgba(94,234,212,.25);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.05), 0 25px 80px rgba(0,0,0,.5), 0 0 40px rgba(20,184,166,.15);
+      transform-style: preserve-3d;
+    }
+    .slide-card.glow {
+      animation: glowPulse 2.4s ease-in-out infinite alternate;
+    }
+    @keyframes glowPulse {
+      from { box-shadow: 0 0 20px rgba(20,184,166,.2), 0 25px 60px rgba(0,0,0,.5); }
+      to { box-shadow: 0 0 48px rgba(167,139,250,.45), 0 0 80px rgba(20,184,166,.25), 0 30px 70px rgba(0,0,0,.55); }
+    }
+    /* Dramatic entrances */
+    .anim-fromRight { animation: fromRight .85s cubic-bezier(.22,1,.36,1) both; }
+    .anim-fromLeft { animation: fromLeft .85s cubic-bezier(.22,1,.36,1) both; }
+    .anim-bounceIn { animation: bounceIn .95s cubic-bezier(.34,1.56,.64,1) both; }
+    .anim-glowRise { animation: glowRise 1s ease-out both; }
+    .anim-flipIn { animation: flipIn .9s ease-out both; }
+    .anim-zoomGlow { animation: zoomGlow .8s ease-out both; }
+    @keyframes fromRight {
+      from { opacity:0; transform: translateX(80px) rotateY(-12deg); }
+      to { opacity:1; transform: none; }
+    }
+    @keyframes fromLeft {
+      from { opacity:0; transform: translateX(-80px) rotateY(12deg); }
+      to { opacity:1; transform: none; }
+    }
+    @keyframes bounceIn {
+      0% { opacity:0; transform: translateY(60px) scale(.92); }
+      60% { opacity:1; transform: translateY(-18px) scale(1.03); }
+      80% { transform: translateY(6px) scale(.99); }
+      100% { transform: none; }
+    }
+    @keyframes glowRise {
+      from { opacity:0; transform: translateY(40px); filter: brightness(.6); }
+      to { opacity:1; transform: none; filter: brightness(1.08); }
+    }
+    @keyframes flipIn {
+      from { opacity:0; transform: rotateX(25deg) translateY(30px); }
+      to { opacity:1; transform: none; }
+    }
+    @keyframes zoomGlow {
+      from { opacity:0; transform: scale(.85); filter: drop-shadow(0 0 0 transparent); }
+      to { opacity:1; transform: scale(1); filter: drop-shadow(0 0 24px rgba(94,234,212,.35)); }
+    }
+    h1 { margin:0 0 1rem; font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight:900; letter-spacing:-.02em; }
+    .body { white-space: pre-wrap; line-height:1.6; font-size:1.1rem; color:#cbd5e1; }
+    .badge { display:inline-block; font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:#5eead4; margin-bottom:.5rem; }
+    /* Dramatic Eleon probe */
+    .float-probe {
+      position: fixed; z-index: 50; width: 56px; height: 56px;
+      border-radius: 18px; border: 2px solid rgba(45,212,191,.55);
+      background: radial-gradient(circle at 30% 30%, #2dd4bf, #0f766e 70%);
+      box-shadow: 0 0 24px rgba(45,212,191,.55), 0 0 48px rgba(139,92,246,.35);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; right: 1.5rem; bottom: 1.5rem;
+      animation: probeWander 9s ease-in-out infinite;
+    }
+    .float-probe img { width: 36px; height: 36px; border-radius: 12px; }
+    .float-probe.speaking {
+      animation: probeGlowBounce 1.1s ease-in-out infinite;
+      border-color: rgba(251,191,36,.85);
+      box-shadow: 0 0 28px rgba(251,191,36,.7), 0 0 60px rgba(45,212,191,.45);
+    }
+    @keyframes probeWander {
+      0%   { transform: translate(0,0) scale(1); }
+      15%  { transform: translate(-40vw, -12vh) scale(1.05); }
+      30%  { transform: translate(-70vw, 8vh) scale(1); }
+      45%  { transform: translate(-20vw, -22vh) scale(1.12); }
+      60%  { transform: translate(-55vw, 5vh) scale(0.95); }
+      75%  { transform: translate(-10vw, -18vh) scale(1.08); }
+      100% { transform: translate(0,0) scale(1); }
+    }
+    @keyframes probeGlowBounce {
+      0%,100% { transform: translateY(0) scale(1); filter: brightness(1); }
+      40% { transform: translateY(-28px) scale(1.18); filter: brightness(1.35); }
+      70% { transform: translateY(-8px) scale(1.05); }
+    }
+    .brand { position:fixed; bottom:.4rem; right:1rem; font-size:.65rem; color:#64748b; z-index:10; }
+    #speakStatus { font-size:.75rem; color:#a78bfa; }
+  </style>
+</head>
+<body>
+<header>
+  <a href="/presentations/{{ presentation.id }}/original-scripts">Scripts</a>
+  <a href="/presentations/{{ presentation.id }}/edit">Editor</a>
+  <button type="button" onclick="prev()">Prev</button>
+  <button type="button" class="btn-teal" onclick="next()">Next</button>
+  <button type="button" class="btn-glow" id="btnAuto" onclick="toggleAuto()">Autoplay + voice</button>
+  <button type="button" onclick="toggleFs()">Fullscreen</button>
+  <span id="pos" style="color:#94a3b8;font-size:.8rem"></span>
+  <span id="speakStatus"></span>
+  {% if presentation.original_pptx_path %}
+  <a class="btn-amber" href="{{ presentation.original_pptx_path }}" download>Original file</a>
+  {% endif %}
+</header>
+<div id="stage"><div id="card" class="slide-card glow"></div></div>
+<button type="button" class="float-probe" id="floatProbe" title="Eleon probe" onclick="toggleAuto()">
+  <img src="/static/icons/icon-192.png" alt="Eleon">
+</button>
+<div class="brand">Knowsoft Eleon · Original structure</div>
+<script>
+const SLIDES = {{ scripts_json|safe }};
+const ANIMS = ["anim-fromRight","anim-fromLeft","anim-bounceIn","anim-glowRise","anim-flipIn","anim-zoomGlow"];
+let i = 0, auto = false, speakToken = 0;
+
+function render() {
+  const s = SLIDES[i] || {title:"Empty", body:"", eleon_speak:""};
+  document.getElementById("pos").textContent = (i+1) + " / " + SLIDES.length;
+  const map = {fromRight:"anim-fromRight",fromLeft:"anim-fromLeft",bounceIn:"anim-bounceIn",glowRise:"anim-glowRise",flipIn:"anim-flipIn",zoomGlow:"anim-zoomGlow",fade:"anim-fromRight"};
+  const anim = map[s.transition] || ANIMS[i % ANIMS.length];
+  const card = document.getElementById("card");
+  card.className = "slide-card glow " + anim;
+  card.innerHTML = `
+    <div class="badge">Slide ${i+1} · Original structure</div>
+    <h1 style="color:#5eead4">${escapeHtml(s.title||"")}</h1>
+    <div class="body">${escapeHtml(s.body||"")}</div>
+  `;
+  if (auto) speakCurrent();
+}
+
+function escapeHtml(t) {
+  return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function next() {
+  if (i < SLIDES.length - 1) { i++; render(); }
+  else if (auto) { auto = false; document.getElementById("btnAuto").textContent = "Autoplay + voice"; window.speechSynthesis.cancel(); }
+}
+function prev() { if (i > 0) { i--; render(); } }
+
+function speakCurrent() {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const s = SLIDES[i] || {};
+  const text = (s.eleon_speak || s.title || "").trim();
+  if (!text) { scheduleNext(2200); return; }
+  const token = ++speakToken;
+  document.getElementById("speakStatus").textContent = "Eleon speaking…";
+  const pr = document.getElementById("floatProbe");
+  if (pr) pr.classList.add("speaking");
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.0; u.pitch = 1.05;
+  u.onend = () => {
+    if (token !== speakToken) return;
+    document.getElementById("speakStatus").textContent = "";
+    const pr = document.getElementById("floatProbe");
+    if (pr) pr.classList.remove("speaking");
+    if (auto) scheduleNext(900);
+  };
+  u.onerror = () => { if (auto) scheduleNext(1500); };
+  window.speechSynthesis.speak(u);
+}
+
+let nextTimer = null;
+function scheduleNext(ms) {
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(() => { if (auto) next(); }, ms);
+}
+
+function toggleAuto() {
+  auto = !auto;
+  document.getElementById("btnAuto").textContent = auto ? "Stop autoplay" : "Autoplay + voice";
+  if (auto) speakCurrent();
+  else { window.speechSynthesis.cancel(); clearTimeout(nextTimer); document.getElementById("speakStatus").textContent = ""; }
+}
+
+function toggleFs() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+  if (e.key === "a" || e.key === "A") toggleAuto();
+  if (e.key === "f" || e.key === "F") toggleFs();
+});
+
+render();
+</script>
+</body>
+</html>
