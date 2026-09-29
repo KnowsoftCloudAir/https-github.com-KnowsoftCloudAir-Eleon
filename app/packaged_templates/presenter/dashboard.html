@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — Eleon</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Eleon">
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 to-indigo-950 text-slate-100">
+  <header class="border-b border-white/10 px-4 py-3 flex flex-wrap items-center gap-3">
+    <span class="font-black tracking-widest text-teal-300">ELEON</span>
+    <span class="text-sm text-slate-400">{{ user.full_name }} · {{ user.login_number or '—' }}</span>
+    {% if user.access_expires_at %}<span class="text-xs text-amber-300/90">Access until {{ user.access_expires_at.strftime('%Y-%m-%d') }}</span>{% endif %}
+    <a href="/logout" class="ml-auto text-sm text-slate-400 hover:text-white">Logout</a>
+  </header>
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <h1 class="text-2xl font-bold">Your presentations</h1>
+      <form method="post" action="/presentations/new" class="flex gap-2">
+        <input name="title" placeholder="New presentation title" class="rounded-xl px-3 py-2 text-slate-900 text-sm">
+        <button class="rounded-xl bg-teal-600 px-4 py-2 font-bold text-sm">Create</button>
+      </form>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      {% for p in presentations %}
+      <div class="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+        <h2 class="font-semibold text-lg">{{ p.title }}</h2>
+        <p class="text-xs text-slate-500 mt-1">Updated {{ p.updated_at }}</p>
+        <div class="mt-3 flex gap-2">
+          <a href="/presentations/{{ p.id }}/edit" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold">Edit</a>
+          <a href="/presentations/{{ p.id }}/present" class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold">Present with Eleon</a>
+        </div>
+      </div>
+      {% else %}
+      <p class="text-slate-400">No presentations yet. Create one to begin.</p>
+      {% endfor %}
+    </div>
+  </main>
+
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+  }
+  </script>
+
+<p class="text-center pb-4"><a href="/subscription" class="text-amber-300 text-sm">Subscription</a></p>
+</body>
+</html>

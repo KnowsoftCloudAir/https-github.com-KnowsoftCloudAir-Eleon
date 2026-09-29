@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Original PPT studio — {{ presentation.title }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#020617; color:#e2e8f0; }
+    .slide-preview {
+      background: linear-gradient(145deg,#0f172a,#1e293b);
+      border: 1px solid rgba(94,234,212,.25);
+      border-radius: 1rem;
+      min-height: 220px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    .speak-box { border-color: rgba(45,212,191,.45) !important; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="sticky top-0 z-20 border-b border-white/10 bg-slate-950/95 px-4 py-3 flex flex-wrap gap-2 items-center">
+    <a href="/presentations/{{ presentation.id }}/edit" class="text-teal-300 text-sm">← Editor</a>
+    <h1 class="font-bold text-lg">Original PPT studio</h1>
+    <span class="text-xs text-slate-400">Slides stay as uploaded · Eleon voice + transitions per slide</span>
+    <span class="flex-1"></span>
+    {% if presentation.original_pptx_path %}
+    <a href="{{ presentation.original_pptx_path }}" download class="rounded-xl bg-amber-800 px-3 py-1.5 text-sm font-bold">Download original file</a>
+    {% endif %}
+    <button type="submit" form="studioForm" class="rounded-xl bg-slate-700 px-3 py-1.5 text-sm font-bold">Save all</button>
+    <a href="/presentations/{{ presentation.id }}/present-original-live" class="rounded-xl bg-teal-600 px-4 py-1.5 text-sm font-bold shadow-lg shadow-teal-900/40">Present →</a>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 space-y-4">
+    <div class="rounded-2xl border border-white/10 bg-slate-900/50 p-4 text-sm text-slate-300 space-y-1">
+      <p><strong class="text-teal-300">How this works</strong></p>
+      <p>1. Each card is one slide from your uploaded PowerPoint (structure preserved).</p>
+      <p>2. On the right, enter what the <strong>Eleon probe</strong> will speak on autoplay. Adjust transition / animation.</p>
+      <p>3. Save, then tap <strong>Present</strong> for full Eleon present mode (probe, autoplay voice, keyboard).</p>
+    </div>
+
+    {% if not scripts %}
+    <div class="rounded-2xl border border-amber-500/40 bg-amber-950/40 p-5 text-sm">
+      No original PPT loaded yet. Use <strong>Store PPT</strong> on the editor, then return here.
+    </div>
+    {% else %}
+    <form id="studioForm" method="post" action="/presentations/{{ presentation.id }}/original-scripts" class="space-y-6">
+      <input type="hidden" name="count" value="{{ scripts|length }}">
+      {% for s in scripts %}
+      <div class="grid lg:grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-slate-900/40 p-4" id="card-{{ loop.index0 }}">
+        <!-- Left: unchanged slide preview -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold uppercase tracking-wide text-teal-400">Slide {{ loop.index }} · original</span>
+            <button type="button" class="text-[10px] text-rose-300 border border-rose-500/30 rounded-lg px-2 py-0.5"
+              onclick="clearSpeak({{ loop.index0 }})">Clear speak</button>
+          </div>
+          <div class="slide-preview p-5">
+            <input type="text" name="title_{{ loop.index0 }}" value="{{ s.title }}"
+              class="w-full bg-transparent text-2xl font-black text-teal-200 border-0 focus:ring-0 mb-3">
+            <textarea name="body_{{ loop.index0 }}" rows="8"
+              class="w-full bg-transparent text-slate-200 text-sm leading-relaxed border-0 focus:ring-0 resize-y">{{ s.body }}</textarea>
+          </div>
+          <p class="text-[10px] text-slate-500">Content mirrors the PPT. Edit only if you need a small fix — design stays structure-based.</p>
+        </div>
+
+        <!-- Right: Eleon speak + motion -->
+        <div class="space-y-3 flex flex-col">
+          <label class="text-xs font-bold text-teal-300">Eleon probe will speak</label>
+          <textarea name="speak_{{ loop.index0 }}" id="speak_{{ loop.index0 }}" rows="6"
+            class="speak-box flex-1 w-full rounded-xl bg-slate-950 border px-3 py-2 text-sm"
+            placeholder="Script for this slide (autoplay + probe)…">{{ s.eleon_speak }}</textarea>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-400">Transition in</label>
+              <select name="transition_{{ loop.index0 }}" class="w-full rounded-lg bg-slate-950 border border-white/10 px-2 py-2 text-sm">
+                {% set tr = s.transition if s.transition is defined else (s.get('transition') if s is mapping else 'fromRight') %}
+                <option value="fromRight" {% if tr == 'fromRight' %}selected{% endif %}>From right</option>
+                <option value="fromLeft" {% if tr == 'fromLeft' %}selected{% endif %}>From left</option>
+                <option value="bounceIn" {% if tr == 'bounceIn' %}selected{% endif %}>Bounce in</option>
+                <option value="glowRise" {% if tr == 'glowRise' %}selected{% endif %}>Glow rise</option>
+                <option value="flipIn" {% if tr == 'flipIn' %}selected{% endif %}>Flip in</option>
+                <option value="zoomGlow" {% if tr == 'zoomGlow' %}selected{% endif %}>Zoom glow</option>
+                <option value="fade" {% if tr == 'fade' %}selected{% endif %}>Fade</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400">Chart / motion feel</label>
+              <select name="motion_{{ loop.index0 }}" class="w-full rounded-lg bg-slate-950 border border-white/10 px-2 py-2 text-sm">
+                {% set mo = s.motion if s.motion is defined else 'grow' %}
+                <option value="grow" {% if mo == 'grow' %}selected{% endif %}>Grow</option>
+                <option value="race" {% if mo == 'race' %}selected{% endif %}>Race bars</option>
+                <option value="3d" {% if mo == '3d' %}selected{% endif %}>3D tilt</option>
+                <option value="none" {% if mo == 'none' %}selected{% endif %}>None</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 pt-1">
+            <button type="button" onclick="previewSpeak({{ loop.index0 }})"
+              class="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-bold">Preview voice</button>
+            <button type="button" onclick="useBodyAsSpeak({{ loop.index0 }})"
+              class="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-bold">Copy body → speak</button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="sticky bottom-3 flex flex-wrap gap-2 justify-end bg-slate-950/90 border border-white/10 rounded-2xl p-3">
+        <button type="submit" class="rounded-xl bg-slate-600 px-5 py-2.5 font-bold">Save scripts</button>
+        <a href="/presentations/{{ presentation.id }}/present-original-live"
+           class="rounded-xl bg-teal-600 px-6 py-2.5 font-bold">Present with Eleon →</a>
+      </div>
+    </form>
+    {% endif %}
+  </main>
+  <script>
+  function clearSpeak(i) {
+    const el = document.getElementById("speak_" + i);
+    if (el) el.value = "";
+  }
+  function useBodyAsSpeak(i) {
+    const body = document.querySelector('[name="body_' + i + '"]');
+    const speak = document.getElementById("speak_" + i);
+    if (body && speak) speak.value = body.value;
+  }
+  function previewSpeak(i) {
+    const speak = document.getElementById("speak_" + i);
+    if (!speak || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(speak.value || "No script yet");
+    u.rate = 1; u.pitch = 1.05;
+    window.speechSynthesis.speak(u);
+  }
+  </script>
+</body>
+</html>

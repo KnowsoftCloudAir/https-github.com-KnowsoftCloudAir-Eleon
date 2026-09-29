@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Present original PPT — {{ presentation.title }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+  <header class="border-b border-white/10 px-4 py-3 flex flex-wrap gap-2 items-center justify-between">
+    <div class="flex items-center gap-3">
+      <a href="/presentations/{{ presentation.id }}/edit" class="text-teal-300 text-sm">← Editor</a>
+      <h1 class="font-bold truncate max-w-md">{{ presentation.title }} · Original PPT</h1>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{{ pptx_url }}" download class="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-bold">Download PPTX</a>
+      <a href="/presentations/{{ presentation.id }}/present" class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-bold">Eleon slides</a>
+      <button type="button" id="btnOffline" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-bold">Save on this device</button>
+    </div>
+  </header>
+  <main class="flex-1 p-4 md:p-6 space-y-4 max-w-3xl mx-auto w-full">
+    <div class="rounded-2xl border border-white/10 bg-slate-900/60 p-6 space-y-3">
+      <p class="text-teal-200 font-semibold">Direct presentation (no conversion)</p>
+      <p class="text-sm text-slate-400">This is the original PowerPoint file you uploaded. Open it in PowerPoint, LibreOffice, or Google Slides on this device — no analysis or internet needed after download.</p>
+      <p class="text-xs break-all text-slate-500">Server path: {{ pptx_url }}</p>
+      <div class="flex flex-wrap gap-2 pt-2">
+        <a href="{{ pptx_url }}" target="_blank" class="rounded-xl bg-teal-600 px-5 py-2.5 font-bold">Open / download file</a>
+        <a href="{{ pptx_url }}" download class="rounded-xl border border-white/20 px-5 py-2.5">Save as…</a>
+      </div>
+      <p id="offlineStatus" class="text-xs text-slate-400 mt-2"></p>
+    </div>
+    <div class="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-slate-400 space-y-2">
+      <p class="font-semibold text-slate-200">Offline tip</p>
+      <p>Use <strong>Save on this device</strong> to keep a copy in this browser (IndexedDB). Later you can open it even if the network is down.</p>
+      <p>For true offline presenting, also download the file once and open it in desktop PowerPoint / LibreOffice.</p>
+    </div>
+  </main>
+  <script>
+  const PPTX_URL = {{ pptx_url|tojson }};
+  const DECK_ID = {{ presentation.id }};
+  const DB_NAME = "eleon_offline_pptx";
+  const STORE = "files";
+
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      const r = indexedDB.open(DB_NAME, 1);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      };
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+  }
+
+  async function saveOffline() {
+    const status = document.getElementById("offlineStatus");
+    status.textContent = "Downloading to this device…";
+    try {
+      const res = await fetch(PPTX_URL);
+      if (!res.ok) throw new Error("Download failed: " + res.status);
+      const blob = await res.blob();
+      const db = await openDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        tx.objectStore(STORE).put({ blob, name: "presentation_" + DECK_ID + ".pptx", savedAt: Date.now() }, "deck_" + DECK_ID);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      status.textContent = "Saved on this device (" + Math.round(blob.size/1024) + " KB). You can open it offline from this browser.";
+      // also trigger download for OS storage
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "presentation_" + DECK_ID + ".pptx";
+      a.click();
+    } catch (e) {
+      status.textContent = "Could not save offline: " + e.message;
+    }
+  }
+
+  async function tryLoadOffline() {
+    try {
+      const db = await openDb();
+      const row = await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const q = tx.objectStore(STORE).get("deck_" + DECK_ID);
+        q.onsuccess = () => resolve(q.result);
+        q.onerror = () => reject(q.error);
+      });
+      if (row && row.blob) {
+        document.getElementById("offlineStatus").textContent =
+          "Offline copy available on this device (saved " + new Date(row.savedAt).toLocaleString() + ").";
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById("btnOffline").addEventListener("click", saveOffline);
+  tryLoadOffline();
+  </script>
+</body>
+</html>
