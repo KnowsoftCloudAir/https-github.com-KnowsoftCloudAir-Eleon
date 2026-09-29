@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slide Studio — {{ presentation.title }} — Eleon</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <meta name="theme-color" content="#0f172a">
+  <style>
+    :root { --accent: #14b8a6; --bg: #0f172a; }
+    .slide-canvas { aspect-ratio: 16/9; background: var(--bg); border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5); }
+    .pattern-gradient_teal { background: linear-gradient(135deg, #0f172a 0%, #134e4a 50%, #0f172a 100%); }
+    .pattern-mesh_indigo { background: radial-gradient(at 20% 30%, #312e81 0, transparent 50%), radial-gradient(at 80% 70%, #1e1b4b 0, transparent 40%), #0f172a; }
+    .pattern-gold_lines { background: repeating-linear-gradient(45deg, #0f172a, #0f172a 20px, #1c1917 20px, #1c1917 40px); }
+    .pattern-aurora { background: linear-gradient(120deg, #0f172a, #134e4a, #1e3a5f, #0f172a); background-size: 300% 300%; animation: aurora 12s ease infinite; }
+    .pattern-grid_dark { background-color: #0f172a; background-image: linear-gradient(rgba(20,184,166,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(20,184,166,0.08) 1px, transparent 1px); background-size: 40px 40px; }
+    .pattern-waves { background: linear-gradient(180deg, #0f172a 0%, #0e7490 40%, #0f172a 100%); }
+    .pattern-orbs { background: radial-gradient(circle at 30% 20%, #14b8a633, transparent 40%), radial-gradient(circle at 70% 80%, #6366f133, transparent 40%), #0f172a; }
+    .pattern-sunset { background: linear-gradient(160deg, #0f172a 0%, #7c2d12 40%, #0f172a 100%); }
+    @keyframes aurora { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+    .img-frame { border: 4px solid rgba(255,255,255,0.15); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+    .img-circle { border-radius: 50%; object-fit: cover; aspect-ratio: 1; box-shadow: 0 0 0 4px rgba(20,184,166,0.4); }
+    .img-polaroid { background: #fff; padding: 8px 8px 28px; border-radius: 2px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); transform: rotate(-2deg); }
+    .img-shadow { border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .img-duotone { filter: grayscale(30%) contrast(1.1) sepia(20%) hue-rotate(140deg); border-radius: 10px; }
+    .img-glow { border-radius: 12px; box-shadow: 0 0 30px rgba(20,184,166,0.45); }
+    .img-hex { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+    .word-em { color: var(--accent); font-weight: 700; text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); animation: pulse-em 1.6s ease-in-out infinite; }
+    @keyframes pulse-em { 0%,100%{opacity:1} 50%{opacity:0.75} }
+    .anim-float3d { animation: float3d 0.9s ease-out; }
+    .anim-cube { animation: cubeIn 0.8s ease; }
+    .anim-fade { animation: fadeIn 0.6s ease; }
+    .anim-slideLeft { animation: slideLeft 0.6s ease; }
+    .anim-slideUp { animation: slideUp 0.6s ease; }
+    .anim-zoom { animation: zoomIn 0.5s ease; }
+    .anim-flip { animation: flipIn 0.7s ease; }
+    .anim-rotateIn { animation: rotateIn 0.7s ease; }
+    .anim-bounceIn { animation: bounceIn 0.8s ease; }
+    @keyframes float3d { from { opacity:0; transform: translateZ(-80px) rotateX(12deg); } to { opacity:1; transform: none; } }
+    @keyframes cubeIn { from { opacity:0; transform: rotateY(-90deg); } to { opacity:1; transform: none; } }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+    @keyframes slideLeft { from { opacity:0; transform: translateX(40px) } to { opacity:1; transform: none } }
+    @keyframes slideUp { from { opacity:0; transform: translateY(30px) } to { opacity:1; transform: none } }
+    @keyframes zoomIn { from { opacity:0; transform: scale(0.85) } to { opacity:1; transform: none } }
+    @keyframes flipIn { from { opacity:0; transform: rotateY(90deg) } to { opacity:1; transform: none } }
+    @keyframes rotateIn { from { opacity:0; transform: rotate(-12deg) scale(0.9) } to { opacity:1; transform: none } }
+    @keyframes bounceIn { 0%{ opacity:0; transform: scale(0.3) } 50%{ transform: scale(1.05) } 100%{ opacity:1; transform: scale(1) } }
+    .word-fadeUp span { display:inline-block; opacity:0; animation: wFadeUp 0.5s forwards; }
+    .word-cascade span { display:inline-block; opacity:0; animation: wCascade 0.4s forwards; }
+    .word-typewriter { overflow: hidden; white-space: nowrap; border-right: 2px solid var(--accent); animation: type 2.5s steps(40) 1; }
+    @keyframes wFadeUp { from { opacity:0; transform: translateY(12px) } to { opacity:1; transform: none } }
+    @keyframes wCascade { from { opacity:0; transform: translateY(8px) } to { opacity:1; transform: none } }
+    @keyframes type { from { width: 0 } to { width: 100% } }
+    .data-table { max-height: 220px; overflow: auto; }
+    .data-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th, .data-table td { border: 1px solid rgba(255,255,255,0.1); padding: 4px 8px; text-align: left; }
+    .data-table th { background: rgba(20,184,166,0.15); color: #5eead4; position: sticky; top: 0; }
+    .thumb { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+    .thumb.active { border-color: #14b8a6; }
+    .finished-card:hover { transform: translateY(-2px); }
+    #livePreview .chart-wrap { height: 180px; max-width: 90%; margin: 0 auto; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <header class="border-b border-white/10 px-4 py-3 flex flex-wrap gap-2 items-center sticky top-0 z-30 bg-slate-950/95 backdrop-blur">
+    <img src="/static/icons/icon-192.png" class="h-7" alt="Knowsoft">
+    <a href="/dashboard" class="text-teal-300 text-sm font-semibold">← Dashboard</a>
+    <h1 class="font-bold truncate max-w-[14rem]">{{ presentation.title }}</h1>
+    <span class="text-xs text-slate-500 hidden sm:inline">Slide Studio</span>
+    <a href="/presentations/{{ presentation.id }}/export.pdf" class="text-xs border border-white/15 rounded-lg px-2 py-1">PDF</a>
+    <a href="/presentations/{{ presentation.id }}/export.pptx" class="text-xs border border-amber-400/40 text-amber-200 rounded-lg px-2 py-1 font-semibold">PowerPoint</a>
+    <a href="/presentations/{{ presentation.id }}/present" class="rounded-xl bg-teal-600 px-3 py-1.5 text-sm font-bold">Present</a>
+    <a href="/presentations/{{ presentation.id }}/export-offline" class="rounded-xl bg-indigo-700 px-3 py-1.5 text-sm font-bold">Offline pack</a>
+    <a href="/presentations/{{ presentation.id }}/original-scripts" class="rounded-xl bg-amber-700 px-3 py-1.5 text-sm font-bold" title="Original PPT structure + Eleon scripts">Present original PPT</a>
+    <a href="/logout" class="text-xs text-rose-300 border border-rose-500/30 rounded-lg px-2 py-1 ml-auto">Log out</a>
+  </header>
+
+  <div class="max-w-[1600px] mx-auto px-3 py-4 grid xl:grid-cols-12 gap-4">
+    <aside class="xl:col-span-2 space-y-2 order-1">
+      <div class="flex items-center justify-between">
+        <p class="text-xs uppercase text-slate-500 font-semibold tracking-wide">Finished slides</p>
+        <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded">{{ slides|length }}</span>
+      </div>
+      <div id="finishedList" class="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+        {% for s in slides %}
+        <div class="finished-card rounded-xl border border-white/10 bg-slate-900/60 p-2 group transition" data-sid="{{ s.id }}">
+          <div class="flex gap-1 items-start">
+            <button type="button" onclick="loadSlideForEdit({{ s.id }})" class="flex-1 text-left">
+              <span class="text-[10px] text-amber-300">#{{ loop.index }}</span>
+              <span class="block text-sm font-semibold truncate">{{ s.title or 'Untitled' }}</span>
+              <span class="text-[10px] text-slate-500">{{ s.layout_style }} · {{ s.chart_type or 'text' }}</span>
+            </button>
+            <form method="post" action="/presentations/{{ presentation.id }}/slides/{{ s.id }}/delete" onsubmit="return confirm('Delete this slide?')">
+              <button class="opacity-0 group-hover:opacity-100 rounded bg-rose-900/60 px-1.5 text-xs text-rose-200">✕</button>
+            </form>
+          </div>
+          <button type="button" onclick="loadSlideForEdit({{ s.id }})" class="mt-1 w-full text-[10px] border border-indigo-400/30 text-indigo-200 rounded py-0.5 hover:bg-indigo-900/40">Edit</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="startNewSlide()" class="w-full rounded-xl border border-dashed border-teal-500/40 bg-teal-950/20 py-2 text-sm font-bold text-teal-200 hover:bg-teal-900/30">+ New slide</button>
+      <form method="post" action="/presentations/{{ presentation.id }}/import-document" enctype="multipart/form-data" class="rounded-xl border border-teal-500/30 bg-teal-950/30 p-3 space-y-2">
+        <p class="text-xs font-semibold text-teal-200">Import PDF/TXT/MD/PPTX</p>
+        <input type="file" name="document" accept=".pdf,.txt,.md,.pptx,.ppt" class="text-xs w-full" required>
+        <button class="w-full rounded-lg bg-teal-600 py-1.5 text-xs font-bold">Analyse → up to 10 slides + Thank you</button>
+      </form>
+    </aside>
+
+    <section class="xl:col-span-5 order-2 space-y-3">
+      <div class="rounded-2xl border border-white/10 bg-slate-900/50 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-teal-300 uppercase tracking-wide">Slide under edition</h2>
+          <span id="editStatus" class="text-[10px] text-slate-500">Draft (not saved)</span>
+        </div>
+        <input type="hidden" id="editSid" value="">
+        <div>
+          <label class="text-xs text-slate-400">Title</label>
+          <input id="fTitle" class="w-full rounded-xl px-3 py-2 text-slate-900 font-semibold" placeholder="Slide title" oninput="refreshPreview()">
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Body (use **word** for emphasis)</label>
+          <textarea id="fBody" rows="4" class="w-full rounded-xl px-3 py-2 text-slate-900" placeholder="Main content" oninput="refreshPreview()"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="text-xs text-slate-400">Layout</label>
+            <select id="fLayout" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="title_body">Title + body</option>
+              <option value="image_left">Image left</option>
+              <option value="image_right">Image right</option>
+              <option value="image_bg">Photo background</option>
+              <option value="centered">Centered</option>
+              <option value="chart">Chart focus</option>
+              <option value="icon_hero">Icon hero</option>
+              <option value="split_accent">Split accent</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Icon</label>
+            <select id="fIcon" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="">None</option>
+              <option value="rocket">🚀 rocket</option><option value="chart">📊 chart</option>
+              <option value="target">🎯 target</option><option value="star">⭐ star</option>
+              <option value="globe">🌍 globe</option><option value="idea">💡 idea</option>
+              <option value="team">👥 team</option><option value="growth">📈 growth</option>
+              <option value="shield">🛡️ shield</option><option value="heart">💚 heart</option>
+              <option value="book">📘 book</option><option value="check">✅ check</option>
+              <option value="fire">🔥 fire</option><option value="trophy">🏆 trophy</option>
+              <option value="spark">✨ spark</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Pattern</label>
+            <select id="fPattern" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="gradient_teal">gradient_teal</option><option value="mesh_indigo">mesh_indigo</option>
+              <option value="gold_lines">gold_lines</option><option value="aurora">aurora</option>
+              <option value="grid_dark">grid_dark</option><option value="waves">waves</option>
+              <option value="orbs">orbs</option><option value="sunset">sunset</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Picture design</label>
+            <select id="fImageStyle" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="frame">frame</option><option value="circle">circle</option>
+              <option value="polaroid">polaroid</option><option value="shadow">shadow</option>
+              <option value="duotone">duotone</option><option value="glow">glow</option>
+              <option value="hex">hex</option>
+              <option value="torn">torn paper</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Entrance (transition)</label>
+            <select id="fAnimIn" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview(true)">
+              <option value="float3d">float3d</option><option value="cube">cube</option>
+              <option value="fade">fade</option><option value="slideLeft">slideLeft</option>
+              <option value="slideUp">slideUp</option><option value="zoom">zoom</option>
+              <option value="flip">flip</option><option value="rotateIn">rotateIn</option>
+              <option value="bounceIn">bounceIn</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Exit</label>
+            <select id="fAnimOut" class="w-full rounded-xl px-2 py-2 text-slate-900">
+              <option value="fade">fade</option><option value="slideLeft">slideLeft</option>
+              <option value="slideUp">slideUp</option><option value="zoom">zoom</option>
+              <option value="flip">flip</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Word entrance</label>
+            <select id="fWordAnim" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview(true)">
+              <option value="fadeUp">fadeUp</option><option value="cascade">cascade</option>
+              <option value="typewriter">typewriter</option><option value="emphasis">emphasis</option>
+              <option value="none">none</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Word emphasis</label>
+            <select id="fWordEm" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="on">On</option><option value="off">Off</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Round numbers</label>
+            <select id="fRound" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="off">Off (exact)</option><option value="0">Whole numbers</option>
+              <option value="1">1 decimal</option><option value="k">K / M shorthand</option>
+            </select>
+          </div>
+          <div><label class="text-xs text-slate-400">Chart type</label>
+            <select id="fChartType" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="">None</option>
+              <option value="bar">Bar</option><option value="line">Line</option>
+              <option value="pie">Pie</option><option value="doughnut">Doughnut</option>
+              <option value="radar">Radar</option><option value="polarArea">Polar area</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Chart data (Label:value, …)</label>
+          <input id="fChartData" class="w-full rounded-xl px-2 py-2 text-slate-900 text-sm" placeholder="Adults:120,Youth:45,Children:80" oninput="refreshPreview()">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="text-xs text-slate-400">Background</label>
+            <input type="color" id="fBg" value="#0f172a" class="w-full h-10 rounded-xl" oninput="refreshPreview()">
+          </div>
+          <div><label class="text-xs text-slate-400">Accent</label>
+            <input type="color" id="fAccent" value="#14b8a6" class="w-full h-10 rounded-xl" oninput="refreshPreview()">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Online image URL</label>
+          <input id="fOnlineImg" class="w-full rounded-xl px-3 py-2 text-slate-900 text-sm" placeholder="https://…" oninput="refreshPreview()">
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Presenter notes / Extra (Eleon Q&A)</label>
+          <textarea id="fNotes" rows="2" class="w-full rounded-xl px-3 py-2 text-slate-900 text-sm"></textarea>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-slate-400">Font family</label>
+            <select id="fFontFamily" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="Inter">Inter</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Merriweather">Merriweather</option>
+              <option value="Playfair Display">Playfair Display</option>
+              <option value="Roboto">Roboto</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Lora">Lora</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Courier New">Courier New</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Font size</label>
+            <select id="fFontSize" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="sm">Small</option>
+              <option value="md" selected>Medium</option>
+              <option value="lg">Large</option>
+              <option value="xl">Extra large</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Font colour</label>
+            <input type="color" id="fFontColor" value="#e2e8f0" class="w-full h-10 rounded-xl" oninput="refreshPreview()">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Picture backdrop</label>
+            <select id="fBackdrop" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="none">None (inline picture)</option>
+              <option value="cover">Sink as cover</option>
+              <option value="soft">Soft faded</option>
+              <option value="torn_paper">Torn paper</option>
+              <option value="vignette">Vignette</option>
+              <option value="blur">Blurred backdrop</option>
+              <option value="duotone_bg">Duotone backdrop</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Chart effect</label>
+            <select id="fChartEffect" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="grow">Grow (animate up)</option>
+              <option value="3d">3D perspective</option>
+              <option value="race">Number race bars</option>
+              <option value="none">Static</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Show data table</label>
+            <select id="fShowTable" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Chart value labels</label>
+            <select id="fChartLabels" class="w-full rounded-xl px-2 py-2 text-slate-900" onchange="refreshPreview()">
+              <option value="outside">Bold outside</option>
+              <option value="inside">Bold inside</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+        </div>
+<div class="rounded-xl border border-white/10 p-3 space-y-2 bg-slate-950/40">
+          <p class="text-xs font-semibold text-slate-300">Pictures (one or several)</p>
+          <input type="file" id="multiImages" accept="image/*" multiple class="text-xs w-full">
+          <div id="imgThumbs" class="flex flex-wrap gap-2"></div>
+          <p class="text-[10px] text-slate-500">Images show in live preview. Change design above. Click thumb to set primary.</p>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button type="button" onclick="saveCurrentSlide()" class="rounded-xl bg-teal-600 px-5 py-2.5 font-bold shadow-lg shadow-teal-900/40 hover:bg-teal-500">Save slide → Finished</button>
+          <button type="button" onclick="startNewSlide()" class="rounded-xl border border-white/20 px-4 py-2 text-sm">Clear / New</button>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-3">
+        <p class="text-sm font-bold text-amber-200">Chart data extraction</p>
+        <p class="text-[11px] text-slate-400">Upload Excel / CSV / PDF. Data is analysed and shown as a structured table before you choose a chart and add it to the slide under edition.</p>
+        <input type="file" id="chartFile" accept=".xlsx,.xlsm,.csv,.txt,.pdf" class="text-xs w-full">
+        <button type="button" onclick="parseChartFile()" class="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-bold">Extract & show table</button>
+        <div id="dataTableWrap" class="hidden space-y-2">
+          <p class="text-xs text-amber-200/90">Structured data (preview before chart):</p>
+          <div class="data-table rounded-lg border border-white/10 bg-slate-950/60" id="dataTable"></div>
+          <div class="flex flex-wrap gap-2 items-end">
+            <div>
+              <label class="text-[10px] text-slate-400">Chart type</label>
+              <select id="applyChartType" class="rounded-lg px-2 py-1 text-slate-900 text-xs">
+                <option value="bar">Bar</option><option value="line">Line</option>
+                <option value="pie">Pie</option><option value="doughnut">Doughnut</option>
+                <option value="radar">Radar</option><option value="polarArea">Polar area</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400">Round numbers</label>
+              <select id="applyRound" class="rounded-lg px-2 py-1 text-slate-900 text-xs">
+                <option value="off">Exact</option><option value="0">Whole</option>
+                <option value="1">1 dec</option><option value="k">K/M</option>
+              </select>
+            </div>
+            <button type="button" onclick="applyChartToDraft()" class="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold">Add chart to slide under edition</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="xl:col-span-5 order-3">
+      <div class="sticky top-16 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase text-slate-500 font-semibold tracking-wide">Live slide display</p>
+          <button type="button" onclick="refreshPreview(true)" class="text-[10px] border border-white/15 rounded px-2 py-0.5">Replay animation</button>
+        </div>
+        <div id="livePreview" class="slide-canvas pattern-gradient_teal w-full">
+          <div class="absolute inset-0 p-6 flex flex-col justify-center text-white" id="previewInner">
+            <p class="text-slate-400 text-sm text-center">Start editing — preview updates live</p>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-500 text-center">Preview reflects transition, animation, word emphasis, picture design and professional charts.</p>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const PID = {{ presentation.id }};
+    const SLIDES = {{ slides_json | default([]) | tojson }};
+    let draftImages = [];
+    let parsedTable = null;
+    let chartInstance = null;
+    const ICON_MAP = {rocket:'🚀',chart:'📊',target:'🎯',star:'⭐',globe:'🌍',idea:'💡',team:'👥',growth:'📈',shield:'🛡️',heart:'💚',book:'📘',check:'✅',fire:'🔥',trophy:'🏆',spark:'✨'};
+    function $(id){ return document.getElementById(id); }
+    function roundVal(v, mode) {
+      if (mode === 'off' || mode == null) return v;
+      const n = Number(v); if (isNaN(n)) return v;
+      if (mode === '0') return Math.round(n);
+      if (mode === '1') return Math.round(n * 10) / 10;
+      if (mode === 'k') {
+        if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+        if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'') + 'K';
+        return Math.round(n);
+      }
+      return n;
+    }
+    function parseChartDataStr(str) {
+      if (!str || !str.trim()) return {labels:[], values:[]};
+      const labels=[], values=[];
+      str.split(',').forEach(part => {
+        const idx = part.lastIndexOf(':');
+        if (idx > 0) { labels.push(part.slice(0,idx).trim()); values.push(parseFloat(part.slice(idx+1)) || 0); }
+      });
+      return {labels, values};
+    }
+    function formatBody(text, wordEm, wordAnim) {
+      if (!text) return '';
+      let html = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.+?)\*\*/g, wordEm === 'on' ? '<span class="word-em">$1</span>' : '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      if (wordAnim === 'fadeUp' || wordAnim === 'cascade') {
+        const cls = wordAnim === 'fadeUp' ? 'word-fadeUp' : 'word-cascade';
+        html = '<span class="'+cls+'">' + html.split(/(<[^>]+>)/).map((tok) => {
+          if (tok.startsWith('<')) return tok;
+          return tok.split(/(\s+)/).map((w,j) => w.trim() ? '<span style="animation-delay:'+(j*0.04)+'s">'+w+'</span>' : w).join('');
+        }).join('') + '</span>';
+      } else if (wordAnim === 'typewriter') {
+        html = '<div class="word-typewriter">' + html + '</div>';
+      }
+      return html;
+    }
+    function refreshPreview(replayAnim) {
+      const title = $('fTitle').value || 'Untitled';
+      const body = $('fBody').value || '';
+      const layout = $('fLayout').value;
+      const icon = $('fIcon').value;
+      const pattern = $('fPattern').value;
+      const imgStyle = $('fImageStyle').value;
+      const animIn = $('fAnimIn').value;
+      const wordAnim = $('fWordAnim').value;
+      const wordEm = $('fWordEm').value;
+      const chartType = $('fChartType').value;
+      const chartDataStr = $('fChartData').value;
+      const roundMode = $('fRound').value;
+      const bg = $('fBg').value;
+      const accent = $('fAccent').value;
+      const online = $('fOnlineImg').value.trim();
+      document.documentElement.style.setProperty('--accent', accent);
+      document.documentElement.style.setProperty('--bg', bg);
+      const canvas = $('livePreview');
+      canvas.className = 'slide-canvas w-full pattern-' + pattern;
+      canvas.style.backgroundColor = bg;
+      canvas.style.backgroundImage = '';
+      const primaryImg = (draftImages[0] && draftImages[0].url) || online || null;
+      const parsed = parseChartDataStr(chartDataStr);
+      const labels = parsed.labels, values = parsed.values;
+      const displayValues = values.map(v => roundVal(v, roundMode));
+      let imgHtml = primaryImg ? '<img src="'+primaryImg+'" class="img-'+imgStyle+' max-h-40 max-w-full object-cover" alt="">' : '';
+      const multiStrip = draftImages.length > 1
+        ? '<div class="flex gap-1 mt-2 justify-center">'+draftImages.slice(0,4).map(im => '<img src="'+im.url+'" class="w-10 h-8 object-cover rounded border border-white/20">').join('')+'</div>'
+        : '';
+      const titleHtml = '<h2 class="text-2xl md:text-3xl font-bold mb-3" style="color:'+accent+'">'+(icon ? (ICON_MAP[icon]||'')+' ' : '')+title+'</h2>';
+      const bodyHtml = '<div class="text-sm md:text-base text-slate-100 leading-relaxed">'+formatBody(body, wordEm, wordAnim)+'</div>';
+      let content = '';
+      if (layout === 'chart' && chartType && labels.length) {
+        content = titleHtml + '<div class="chart-wrap"><canvas id="previewChart"></canvas></div>' + bodyHtml;
+      } else if (layout === 'image_left' && primaryImg) {
+        content = '<div class="flex gap-4 items-center h-full"><div class="w-2/5">'+imgHtml+'</div><div class="flex-1">'+titleHtml+bodyHtml+'</div></div>'+multiStrip;
+      } else if (layout === 'image_right' && primaryImg) {
+        content = '<div class="flex gap-4 items-center h-full"><div class="flex-1">'+titleHtml+bodyHtml+'</div><div class="w-2/5">'+imgHtml+'</div></div>'+multiStrip;
+      } else if (layout === 'image_bg' && primaryImg) {
+        canvas.style.backgroundImage = 'linear-gradient(rgba(15,23,42,0.7),rgba(15,23,42,0.85)), url('+primaryImg+')';
+        canvas.style.backgroundSize = 'cover';
+        content = titleHtml + bodyHtml;
+      } else if (layout === 'centered' || layout === 'icon_hero') {
+        content = '<div class="text-center">'+(icon ? '<div class="text-5xl mb-3">'+(ICON_MAP[icon]||'')+'</div>' : '')+titleHtml+bodyHtml+(imgHtml ? '<div class="mt-4 flex justify-center">'+imgHtml+'</div>' : '')+'</div>'+multiStrip;
+      } else if (layout === 'split_accent') {
+        content = '<div class="flex h-full"><div class="w-1.5 rounded-full mr-4" style="background:'+accent+'"></div><div class="flex-1">'+titleHtml+bodyHtml+imgHtml+'</div></div>'+multiStrip;
+      } else {
+        content = titleHtml + bodyHtml + (imgHtml ? '<div class="mt-3">'+imgHtml+'</div>' : '') + multiStrip;
+        if (chartType && labels.length) content += '<div class="chart-wrap mt-3"><canvas id="previewChart"></canvas></div>';
+      }
+      const inner = $('previewInner');
+      inner.className = 'absolute inset-0 p-5 md:p-6 flex flex-col justify-center text-white ' + (replayAnim ? 'anim-' + animIn : '');
+      inner.innerHTML = content;
+      if (chartType && labels.length && document.getElementById('previewChart')) {
+        if (chartInstance) { try { chartInstance.destroy(); } catch(e){} }
+        const ctx = document.getElementById('previewChart').getContext('2d');
+        const palette = [accent, '#6366f1', '#f59e0b', '#ec4899', '#22d3ee', '#a3e635', '#f97316', '#e879f9'];
+        chartInstance = new Chart(ctx, {
+          type: chartType === 'polarArea' ? 'polarArea' : chartType,
+          data: {
+            labels,
+            datasets: [{
+              label: title,
+              data: displayValues,
+              backgroundColor: chartType === 'line' ? accent + '33' : labels.map((_,i) => palette[i % palette.length] + (chartType==='line'?'':'cc')),
+              borderColor: chartType === 'line' ? accent : labels.map((_,i) => palette[i % palette.length]),
+              borderWidth: 2, tension: 0.35, fill: chartType === 'line',
+              pointRadius: 4, pointBackgroundColor: accent
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: '#e2e8f0', font: { size: 11 } } },
+              tooltip: { backgroundColor: '#0f172a', titleColor: accent, bodyColor: '#e2e8f0' }
+            },
+            scales: (chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea' || chartType === 'radar') ? {} : {
+              x: { ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: 'rgba(255,255,255,0.06)' } },
+              y: { ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: 'rgba(255,255,255,0.06)' } }
+            }
+          }
+        });
+      }
+    }
+    $('multiImages').addEventListener('change', function(e) {
+      const files = Array.from(e.target.files || []);
+      files.forEach(function(f) {
+        const url = URL.createObjectURL(f);
+        draftImages.push({ url: url, file: f, name: f.name });
+      });
+      renderThumbs(); refreshPreview();
+    });
+    function renderThumbs() {
+      const box = $('imgThumbs');
+      box.innerHTML = draftImages.map(function(im, i) {
+        return '<img src="'+im.url+'" class="thumb '+(i===0?'active':'')+'" title="'+(im.name||'img')+'" onclick="setPrimary('+i+')">';
+      }).join('') + (draftImages.length ? '<button type="button" class="text-[10px] text-rose-300 px-1" onclick="clearImages()">Clear</button>' : '');
+    }
+    function setPrimary(i) {
+      const im = draftImages.splice(i, 1)[0];
+      draftImages.unshift(im);
+      renderThumbs(); refreshPreview();
+    }
+    function clearImages() { draftImages = []; renderThumbs(); refreshPreview(); }
+    async function parseChartFile() {
+      const input = $('chartFile');
+      if (!input.files || !input.files[0]) { alert('Choose a file first'); return; }
+      const fd = new FormData();
+      fd.append('datafile', input.files[0]);
+      const r = await fetch('/presentations/'+PID+'/parse-chart-data', { method: 'POST', body: fd, credentials: 'same-origin' });
+      if (!r.ok) { const t = await r.text(); alert('Parse failed: '+(t || r.status)); return; }
+      const data = await r.json();
+      parsedTable = data;
+      $('dataTableWrap').classList.remove('hidden');
+      let rows = data.rows || [];
+      if (!rows.length && data.labels) rows = data.labels.map(function(l,i){ return {label:l, value:data.values[i]}; });
+      let html = '<table><thead><tr><th>#</th><th>Label</th><th>Value</th></tr></thead><tbody>';
+      rows.forEach(function(row, i) {
+        html += '<tr><td>'+(i+1)+'</td><td>'+(row.label != null ? row.label : '')+'</td><td>'+(row.value != null ? row.value : '')+'</td></tr>';
+      });
+      html += '</tbody></table>';
+      $('dataTable').innerHTML = html || '<p class="p-2 text-slate-400">No numeric pairs found</p>';
+    }
+    function applyChartToDraft() {
+      if (!parsedTable) { alert('Extract data first'); return; }
+      const labels = parsedTable.labels || (parsedTable.rows||[]).map(function(r){ return r.label; });
+      const values = parsedTable.values || (parsedTable.rows||[]).map(function(r){ return r.value; });
+      const roundMode = $('applyRound').value;
+      const str = labels.map(function(l,i){ return l + ':' + roundVal(values[i], roundMode); }).join(',');
+      $('fChartData').value = str;
+      $('fChartType').value = $('applyChartType').value;
+      $('fLayout').value = 'chart';
+      $('fRound').value = roundMode;
+      if (!$('fTitle').value) $('fTitle').value = 'Data chart';
+      refreshPreview(true);
+    }
+    function startNewSlide() {
+      $('editSid').value = '';
+      $('fTitle').value = ''; $('fBody').value = ''; $('fNotes').value = '';
+      $('fChartData').value = ''; $('fChartType').value = ''; $('fOnlineImg').value = '';
+      $('fLayout').value = 'title_body'; $('fIcon').value = '';
+      $('fPattern').value = 'gradient_teal'; $('fImageStyle').value = 'frame';
+      $('fAnimIn').value = 'float3d'; $('fAnimOut').value = 'fade';
+      $('fWordAnim').value = 'fadeUp'; $('fWordEm').value = 'on';
+      $('fRound').value = 'off'; $('fBg').value = '#0f172a'; $('fAccent').value = '#14b8a6';
+      if ($('fFontFamily')) $('fFontFamily').value = 'Inter';
+      if ($('fFontSize')) $('fFontSize').value = 'md';
+      if ($('fFontColor')) $('fFontColor').value = '#e2e8f0';
+      if ($('fBackdrop')) $('fBackdrop').value = 'none';
+      if ($('fChartEffect')) $('fChartEffect').value = 'grow';
+      if ($('fShowTable')) $('fShowTable').value = 'off';
+      if ($('fChartLabels')) $('fChartLabels').value = 'outside';
+      draftImages = []; renderThumbs();
+      $('editStatus').textContent = 'Draft (not saved)';
+      $('editStatus').className = 'text-[10px] text-slate-500';
+      refreshPreview();
+    }
+    async function loadSlideForEdit(sid) {
+      const s = SLIDES.find(function(x){ return x.id === sid; });
+      if (!s) return;
+      $('editSid').value = sid;
+      $('fTitle').value = s.title || '';
+      $('fBody').value = s.body || '';
+      $('fNotes').value = (s.notes || '') + (s.extra_data ? '\n' + s.extra_data : '');
+      $('fChartData').value = s.chart_data || '';
+      $('fChartType').value = s.chart_type || '';
+      $('fOnlineImg').value = s.online_image_url || '';
+      $('fLayout').value = s.layout_style || 'title_body';
+      $('fIcon').value = s.icon_name || '';
+      $('fPattern').value = s.pattern || 'gradient_teal';
+      $('fImageStyle').value = s.image_style || 'frame';
+      $('fAnimIn').value = s.animation_in || 'fade';
+      $('fAnimOut').value = s.animation_out || 'fade';
+      $('fWordAnim').value = s.word_animation || 'fadeUp';
+      $('fWordEm').value = s.word_emphasis ? 'on' : 'off';
+      $('fBg').value = s.bg_color || '#0f172a';
+      $('fAccent').value = s.accent || '#14b8a6';
+      if ($('fFontFamily')) $('fFontFamily').value = s.font_family || 'Inter';
+      if ($('fFontSize')) $('fFontSize').value = s.font_size || 'md';
+      if ($('fFontColor')) $('fFontColor').value = s.font_color || '#e2e8f0';
+      if ($('fBackdrop')) $('fBackdrop').value = s.backdrop_style || 'none';
+      if ($('fChartEffect')) $('fChartEffect').value = s.chart_effect || 'grow';
+      if ($('fShowTable')) $('fShowTable').value = s.show_data_table ? 'on' : 'off';
+      if ($('fChartLabels')) $('fChartLabels').value = s.chart_label_mode || 'outside';
+      draftImages = [];
+      if (s.image_path) draftImages.push({ url: s.image_path, name: 'saved' });
+      if (s.images_json) {
+        try {
+          const arr = typeof s.images_json === 'string' ? JSON.parse(s.images_json) : s.images_json;
+          (arr || []).forEach(function(u){ if (u && !draftImages.find(function(d){ return d.url === u; })) draftImages.push({ url: u }); });
+        } catch(e) {}
+      }
+      renderThumbs();
+      $('editStatus').textContent = 'Editing saved slide #' + sid;
+      $('editStatus').className = 'text-[10px] text-amber-300';
+      refreshPreview(true);
+    }
+    async function saveCurrentSlide() {
+      const sid = $('editSid').value;
+      for (let i = 0; i < draftImages.length; i++) {
+        const im = draftImages[i];
+        if (im.file) {
+          const ifd = new FormData();
+          ifd.append('image', im.file);
+          const ir = await fetch('/presentations/'+PID+'/slides/upload-temp-image', { method:'POST', body: ifd, credentials:'same-origin' });
+          if (ir.ok) {
+            const j = await ir.json();
+            im.url = j.url;
+            delete im.file;
+          }
+        }
+      }
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = sid ? ('/presentations/'+PID+'/slides/'+sid) : ('/presentations/'+PID+'/slides');
+      function add(name, val) {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = val == null ? '' : val;
+        form.appendChild(inp);
+      }
+      add('title', $('fTitle').value || 'Untitled');
+      add('body', $('fBody').value || '');
+      add('extra_data', $('fNotes').value || '');
+      add('notes', $('fNotes').value || '');
+      add('layout_style', $('fLayout').value);
+      add('icon_name', $('fIcon').value);
+      add('pattern', $('fPattern').value);
+      add('image_style', $('fImageStyle').value);
+      add('animation_in', $('fAnimIn').value);
+      add('animation_out', $('fAnimOut').value);
+      add('word_animation', $('fWordAnim').value);
+      add('word_emphasis', $('fWordEm').value);
+      add('chart_type', $('fChartType').value);
+      add('chart_data', $('fChartData').value);
+      add('bg_color', $('fBg').value);
+      add('accent', $('fAccent').value);
+      add('online_image_url', $('fOnlineImg').value);
+      add('keyword_animation', 'on');
+      add('font_family', $('fFontFamily').value);
+      add('font_size', $('fFontSize').value);
+      add('font_color', $('fFontColor').value);
+      add('backdrop_style', $('fBackdrop').value);
+      add('chart_effect', $('fChartEffect').value);
+      add('show_data_table', $('fShowTable').value);
+      add('chart_label_mode', ($('fChartLabels')&&$('fChartLabels').value)||'outside');
+      const paths = draftImages.map(function(d){ return d.url; }).filter(Boolean);
+      if (paths[0]) add('image_path', paths[0]);
+      add('images_json', JSON.stringify(paths));
+      document.body.appendChild(form);
+      form.submit();
+    }
+    startNewSlide();
+  </script>
+</body>
+</html>

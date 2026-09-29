@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Present — {{ presentation.title }} — Eleon</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <style>
+    html,body{height:100%;margin:0;overflow:hidden;background:#020617;font-family:Inter,system-ui,sans-serif;}
+    .slide-stage{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:2rem 2rem 2rem 2rem;perspective:1200px;transition:padding .3s;}
+    .ui-visible .slide-stage{padding:4.5rem 11rem 2rem 2rem;}
+    @media(max-width:900px){.ui-visible .slide-stage{padding:4.5rem 1rem 2rem;}}
+    .slide-card{max-width:min(1000px,94vw);width:100%;border-radius:1.5rem;padding:clamp(1.25rem,3vw,2.25rem);transform-style:preserve-3d;box-shadow:0 25px 80px rgba(0,0,0,.45);}
+    .anim-fade{animation:fadeIn .7s ease;}
+    .anim-slideLeft{animation:slideLeft .7s cubic-bezier(.22,1,.36,1);}
+    .anim-slideUp{animation:slideUp .7s cubic-bezier(.22,1,.36,1);}
+    .anim-zoom{animation:zoomIn .7s cubic-bezier(.22,1,.36,1);}
+    .anim-flip{animation:flipIn .85s cubic-bezier(.22,1,.36,1);}
+    .anim-cube{animation:cubeIn .9s cubic-bezier(.22,1,.36,1);}
+    .anim-float3d{animation:float3d .9s cubic-bezier(.22,1,.36,1);}
+    .anim-rotateIn{animation:rotateIn .8s ease;}
+    .anim-bounceIn{animation:bounceIn .85s cubic-bezier(.34,1.56,.64,1);}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes slideLeft{from{opacity:0;transform:translateX(80px) rotateY(-12deg)}to{opacity:1;transform:none}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(60px) scale(.96)}to{opacity:1;transform:none}}
+    @keyframes zoomIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:none}}
+    @keyframes flipIn{from{opacity:0;transform:rotateY(55deg)}to{opacity:1;transform:none}}
+    @keyframes cubeIn{from{opacity:0;transform:rotateX(55deg) translateY(40px)}to{opacity:1;transform:none}}
+    @keyframes float3d{from{opacity:0;transform:translateZ(-120px) rotateX(18deg)}to{opacity:1;transform:none}}
+    @keyframes rotateIn{from{opacity:0;transform:rotate(-8deg) scale(.9)}to{opacity:1;transform:none}}
+    @keyframes bounceIn{0%{opacity:0;transform:scale(.6)}60%{transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+    .word{display:inline-block;opacity:0;animation:wordFadeUp .45s forwards;}
+    .word.wa-fadeUp{animation-name:wordFadeUp;}
+    .word.wa-cascade{animation-name:wordCascade;}
+    @keyframes wordFadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+    @keyframes wordCascade{from{opacity:0;transform:rotateX(60deg)}to{opacity:1;transform:none}}
+    .kw-hit{background:linear-gradient(90deg,#fbbf24,#34d399);-webkit-background-clip:text;color:transparent;font-weight:800;}
+    .chrome{position:fixed;z-index:45;opacity:0;pointer-events:none;transition:opacity .35s ease;}
+    .ui-visible .chrome{opacity:1;pointer-events:auto;}
+    .brand-bar{top:0;left:0;right:0;display:flex;align-items:center;gap:.45rem;padding:.5rem .75rem;background:linear-gradient(90deg,rgba(15,23,42,.96),rgba(30,27,75,.85));border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;}
+    .side-enh{top:50%;right:.5rem;transform:translateY(-50%);width:9.5rem;display:flex;flex-direction:column;gap:.28rem;max-height:70vh;overflow:auto;}
+    .side-enh button{font-size:10px;text-align:left;padding:.35rem .45rem;border-radius:.55rem;background:rgba(15,23,42,.9);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;}
+    .float-probe{
+      position:fixed; left:1rem; bottom:1.2rem; z-index:48;
+      width:56px; height:56px; border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(15,23,42,.8); border:1px solid rgba(45,212,191,.4);
+      box-shadow:0 8px 28px rgba(0,0,0,.35);
+      animation:probeBob 2.8s ease-in-out infinite;
+      cursor:pointer;
+    }
+    .float-probe img{width:34px;height:34px;border-radius:10px;}
+    .float-probe.awake{animation:probeBlink 1.1s ease;}
+    .float-probe.listening{border-color:rgba(251,191,36,.7);box-shadow:0 0 22px rgba(251,191,36,.5);}
+    @keyframes probeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+    @keyframes probeWander{
+      0%{transform:translate(0,0) scale(1)}
+      20%{transform:translate(-35vw,-10vh) scale(1.08)}
+      40%{transform:translate(-65vw,6vh) scale(1)}
+      60%{transform:translate(-25vw,-20vh) scale(1.15)}
+      80%{transform:translate(-50vw,4vh) scale(.95)}
+      100%{transform:translate(0,0) scale(1)}
+    }
+    @keyframes probeGlowBounce{
+      0%,100%{transform:translateY(0) scale(1);filter:brightness(1);box-shadow:0 0 22px rgba(45,212,191,.5)}
+      40%{transform:translateY(-30px) scale(1.2);filter:brightness(1.4);box-shadow:0 0 40px rgba(251,191,36,.7)}
+      70%{transform:translateY(-10px) scale(1.08)}
+    }
+    .float-probe.wander{animation:probeWander 10s ease-in-out infinite !important;}
+    .float-probe.speaking-glow{animation:probeGlowBounce 1.05s ease-in-out infinite !important;border-color:rgba(251,191,36,.8)!important;}
+
+    @keyframes probeRunOut{0%{transform:translateX(0) scale(1);opacity:1}100%{transform:translateX(-140%) scale(.6);opacity:0}}
+    @keyframes probeRunIn{0%{transform:translateX(-140%) scale(.6);opacity:0}60%{transform:translateX(8px) scale(1.05);opacity:1}100%{transform:translateX(0) scale(1);opacity:1}}
+    .float-probe.run-out{animation:probeRunOut .55s ease forwards !important;}
+    .float-probe.run-in{animation:probeRunIn .65s ease forwards !important;}
+    @keyframes probeBlink{0%{transform:scale(1)}40%{transform:scale(1.12);box-shadow:0 0 0 12px rgba(45,212,191,0)}100%{transform:scale(1)}}
+    .icon-pop{font-size:clamp(2rem,5vw,3rem);animation:bounceIn .8s ease;}
+    .layout-split{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:center;}
+    @media(max-width:700px){.layout-split{grid-template-columns:1fr;}}
+    .img-frame{border-radius:1.1rem;overflow:hidden;border:1px solid rgba(255,255,255,.15);}
+    .cmd-line{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);z-index:50;width:min(520px,92vw);display:none;}
+  
+    .pat-gradient_teal{background:radial-gradient(ellipse at 20% 10%,rgba(20,184,166,.35),transparent 50%),radial-gradient(ellipse at 80% 90%,rgba(99,102,241,.25),transparent 45%),#0f172a !important;}
+    .pat-mesh_indigo{background:radial-gradient(circle at 30% 40%,rgba(99,102,241,.4),transparent 40%),radial-gradient(circle at 70% 60%,rgba(139,92,246,.3),transparent 40%),#1e1b4b !important;}
+    .pat-gold_lines{background:repeating-linear-gradient(135deg,rgba(251,191,36,.08) 0 2px,transparent 2px 14px),#1c1917 !important;}
+    .pat-aurora{background:linear-gradient(125deg,rgba(16,185,129,.3),rgba(59,130,246,.25),rgba(168,85,247,.3)),#0f172a !important;}
+    .pat-grid_dark{background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;background-color:#020617 !important;}
+    .pat-waves{background:radial-gradient(ellipse at bottom,rgba(14,165,233,.35),transparent 60%),#0c4a6e !important;}
+    .pat-orbs{background:radial-gradient(circle at 15% 20%,rgba(244,63,94,.25),transparent 30%),radial-gradient(circle at 85% 70%,rgba(34,211,238,.2),transparent 35%),#0f172a !important;}
+    .pat-sunset{background:linear-gradient(180deg,rgba(251,146,60,.35),rgba(127,29,29,.4),#0f172a) !important;}
+    .img-circle{border-radius:50%;aspect-ratio:1;object-fit:cover;max-height:240px;}
+    .img-polaroid{background:#fff;padding:10px 10px 28px;border-radius:4px;box-shadow:0 12px 30px rgba(0,0,0,.4);transform:rotate(-2deg);}
+    .img-shadow{box-shadow:0 20px 50px rgba(0,0,0,.55);border-radius:1rem;}
+    .img-duotone{filter:grayscale(1) contrast(1.2) sepia(.4) hue-rotate(140deg);}
+    .img-glow{border-radius:1rem;box-shadow:0 0 40px rgba(45,212,191,.45);}
+    .img-hex{clip-path:polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0 50%);max-height:260px;}
+    .word.wa-emphasis{animation:wordEm .55s forwards;}
+    @keyframes wordEm{0%{opacity:0;transform:scale(.85)}60%{transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+    .slide-footer{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(226,232,240,.55);z-index:30;pointer-events:none;}
+    .slide-logo{position:absolute;top:3.5rem;right:1.25rem;height:36px;z-index:30;opacity:.9;}
+
+  
+    .aud-q{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:55;max-width:min(560px,92vw);
+      background:rgba(15,23,42,.92);border:1px solid rgba(45,212,191,.45);border-radius:1rem;padding:1rem 1.25rem;
+      box-shadow:0 20px 50px rgba(0,0,0,.45);animation:popQ .45s ease;}
+    @keyframes popQ{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%)}}
+    .admit-panel{position:fixed;left:.75rem;top:4rem;z-index:46;width:14rem;max-height:50vh;overflow:auto;
+      background:linear-gradient(160deg,rgba(15,23,42,.96),rgba(15,23,42,.88));border:1px solid rgba(45,212,191,.35);
+      border-radius:1rem;padding:.65rem;font-size:12px;box-shadow:0 12px 40px rgba(0,0,0,.4);}
+    .admit-panel .pending-card{background:rgba(255,255,255,.05);border-radius:.5rem;padding:.4rem .5rem;margin-bottom:.4rem;}
+    .admit-panel .btn-yes{background:#059669;color:#fff;border:none;border-radius:.4rem;padding:.15rem .45rem;cursor:pointer;font-weight:700;}
+    .admit-panel .btn-no{background:#be123c;color:#fff;border:none;border-radius:.4rem;padding:.15rem .45rem;cursor:pointer;}
+  
+    .react-float{position:fixed;bottom:6rem;font-size:1.6rem;animation:floatUp 2.2s ease forwards;pointer-events:none;z-index:60;}
+    @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-100px)}}
+  
+    .img-torn {
+      clip-path: polygon(0% 3%, 2% 0%, 8% 2%, 15% 0%, 22% 3%, 30% 1%, 38% 3%, 45% 0%, 55% 2%, 62% 0%, 70% 3%, 78% 1%, 85% 3%, 92% 0%, 100% 2%, 100% 97%, 98% 100%, 90% 98%, 82% 100%, 75% 97%, 68% 100%, 60% 98%, 52% 100%, 45% 97%, 38% 100%, 30% 98%, 22% 100%, 15% 97%, 8% 100%, 0% 98%);
+      filter: drop-shadow(0 12px 24px rgba(0,0,0,.5));
+    }
+    .backdrop-torn {
+      position:absolute; inset:0; background-size:cover; background-position:center;
+      clip-path: polygon(0% 2%, 3% 0%, 10% 2%, 18% 0%, 28% 2%, 40% 0%, 52% 2%, 65% 0%, 78% 2%, 90% 0%, 100% 2%, 100% 98%, 95% 100%, 85% 98%, 75% 100%, 62% 98%, 50% 100%, 38% 98%, 25% 100%, 12% 98%, 0% 100%);
+      opacity:.55; filter: saturate(1.1) contrast(1.05);
+    }
+    .backdrop-cover { position:absolute; inset:0; background-size:cover; background-position:center; opacity:.45; }
+    .backdrop-soft { position:absolute; inset:0; background-size:cover; background-position:center; opacity:.35; filter:blur(2px); }
+    .backdrop-vignette { position:absolute; inset:0; background-size:cover; background-position:center; opacity:.5;
+      mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+    }
+    .backdrop-blur { position:absolute; inset:0; background-size:cover; background-position:center; opacity:.4; filter:blur(8px) brightness(.7); }
+    .backdrop-duotone_bg { position:absolute; inset:0; background-size:cover; background-position:center; opacity:.5;
+      filter: grayscale(1) contrast(1.15) sepia(.35) hue-rotate(140deg); }
+    .slide-content-layer { position:relative; z-index:5; }
+    .data-table-slide { width:100%; border-collapse:collapse; font-size:clamp(11px,1.6vw,15px); margin-top:.75rem; }
+    .data-table-slide th, .data-table-slide td { border:1px solid rgba(255,255,255,.12); padding:.4rem .65rem; text-align:left; }
+    .data-table-slide th { background:rgba(20,184,166,.2); color:#5eead4; }
+    .race-wrap { display:flex; flex-direction:column; gap:.55rem; margin-top:1rem; }
+    .race-row { display:grid; grid-template-columns:7rem 1fr 3.5rem; gap:.5rem; align-items:center; }
+    .race-label { font-size:clamp(11px,1.5vw,14px); color:#e2e8f0; truncate; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .race-track { height:1.1rem; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; }
+    .race-bar { height:100%; border-radius:999px; width:0%; transition:width 1.4s cubic-bezier(.22,1,.36,1); background:linear-gradient(90deg,var(--accent,#14b8a6),#6366f1); box-shadow:0 0 16px color-mix(in srgb, var(--accent,#14b8a6) 50%, transparent); }
+    .race-val { font-weight:800; font-size:clamp(12px,1.6vw,15px); color:#fff; text-align:right; }
+    .chart-3d-wrap { perspective:900px; }
+    .chart-3d-wrap { perspective: 1000px; transform-style: preserve-3d; }
+    .chart-3d-wrap.chart-3d-active canvas {
+      transform: rotateX(18deg) rotateY(-6deg) scale(1.02);
+      transform-origin: center bottom;
+      filter: drop-shadow(0 22px 28px rgba(0,0,0,.55));
+      border-radius: 8px;
+    }
+    .slide-stage { position: absolute; inset: 0; overflow: auto; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
+    .slide-stage img.slide-photo { max-height: 280px; max-width: 100%; object-fit: cover; }
+    .backdrop-layer { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; pointer-events:none; }
+
+    .multi-strip { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.75rem; justify-content:center; }
+    .multi-strip img { height:72px; width:auto; max-width:30%; object-fit:cover; border-radius:.5rem; border:1px solid rgba(255,255,255,.15); }
+    .brand-chip { display:inline-flex; align-items:center; gap:.35rem; font-size:10px; letter-spacing:.12em; text-transform:uppercase; opacity:.85; }
+    .font-sm { font-size: clamp(0.85rem, 1.4vw, 1rem); }
+    .font-md { font-size: clamp(1rem, 1.8vw, 1.2rem); }
+    .font-lg { font-size: clamp(1.15rem, 2.2vw, 1.45rem); }
+    .font-xl { font-size: clamp(1.3rem, 2.8vw, 1.75rem); }
+
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Eleon">
+</head>
+<body>
+  <div class="chrome brand-bar" id="brandBar">
+    <img src="/static/img/knowsoft-logo.png" alt="Knowsoft" class="h-7" onerror="this.src='/static/icons/icon-192.png'">
+    <span class="text-sm font-bold text-white hidden sm:inline">Eleon</span>
+    <span class="rounded-lg bg-black/30 text-amber-200 px-2 py-0.5 text-xs border border-white/10" id="presTimer">00:00</span>
+    <span class="rounded-lg bg-black/30 text-teal-200 px-2 py-0.5 text-xs border border-white/10" id="counter">1 / {{ slides|length }}</span>
+    <select id="voiceSelect" class="text-xs rounded-lg px-1 py-1 text-slate-900 max-w-[8rem]"></select>
+    <select id="langSelect" class="text-xs rounded-lg px-1 py-1 text-slate-900">
+      <option value="en-US">English</option>
+      <option value="en-GB">English UK</option>
+      <option value="fr-FR">French</option>
+      <option value="es-ES">Spanish</option>
+      <option value="pt-BR">Portuguese</option>
+      <option value="de-DE">German</option>
+      <option value="ar-SA">Arabic</option>
+      <option value="hi-IN">Hindi</option>
+    </select>
+    <div class="ml-auto flex flex-wrap gap-1 items-center">
+      <button type="button" onclick="toggleFullscreen()" class="rounded-lg bg-indigo-600 text-white px-2 py-1 text-xs font-semibold">⛶ Fullscreen</button>
+      <button type="button" id="liveBtn" onclick="startLive()" class="rounded-lg bg-emerald-700 text-white px-2 py-1 text-xs font-semibold">🔗 Join link</button>
+      <button type="button" id="endLiveBtn" onclick="endLiveSession()" class="rounded-lg bg-rose-800 text-white px-2 py-1 text-xs hidden">End live</button>
+      <button type="button" id="voiceShareBtn" onclick="toggleVoiceShare()" class="rounded-lg bg-slate-700 text-white px-2 py-1 text-xs">🎙 Voice share</button>
+      <button type="button" id="autoBtn" onclick="toggleAutoplay()" class="rounded-lg bg-violet-700 text-white px-2 py-1 text-xs">▶ Auto-play</button>
+      <button type="button" id="musicBtn" onclick="toggleMusic()" class="rounded-lg bg-slate-700 text-white px-2 py-1 text-xs">🎵 Music</button>
+      <select id="musicTrack" class="text-xs rounded-lg px-1 py-1 text-slate-900 max-w-[8rem]" title="Calm background">
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3">Calm 1</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3">Calm 2</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3">Soft piano-like</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3">Gentle 6</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3">Ambient 8</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3">Relax 9</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3">Peaceful 10</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3">Quiet 13</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3">Soft 15</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3">Serene 16</option>
+        <option value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3">Mellow 17</option>
+      </select>
+      <button type="button" id="micBtn" onclick="toggleListen()" class="rounded-lg bg-slate-600 text-white px-2 py-1 text-xs font-semibold">🎤 Voice</button>
+      <button type="button" onclick="readCurrent()" class="rounded-lg bg-white/10 text-white px-2 py-1 text-xs">Read</button>
+      <button type="button" onclick="go(-1)" class="rounded-lg bg-white/10 text-white px-2 py-1 text-xs">Prev</button>
+      <button type="button" onclick="go(1)" class="rounded-lg bg-teal-600 text-white px-2 py-1 text-xs font-semibold">Next</button>
+      <button type="button" onclick="startClosing()" class="rounded-lg bg-slate-700 text-white px-2 py-1 text-xs">End</button>
+      {% if not shared %}
+      <a href="/logout" class="rounded-lg bg-rose-900/60 text-rose-100 px-2 py-1 text-xs">Log out</a>
+      <a href="/presentations/{{ presentation.id }}/export.pptx" class="rounded-lg bg-amber-700 text-white px-2 py-1 text-xs font-semibold">PPTX</a>
+      <a href="/presentations/{{ presentation.id }}/edit" class="rounded-lg bg-black/40 text-white/80 px-2 py-1 text-xs border border-white/10">Exit</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="chrome side-enh" id="sideEnh">
+    <p class="text-[10px] uppercase text-teal-300/90 px-1">Enhance</p>
+    <button type="button" onclick="setAnim('float3d')">3D float</button>
+    <button type="button" onclick="setAnim('cube')">3D cube</button>
+    <button type="button" onclick="setAnim('zoom')">Zoom</button>
+    <button type="button" onclick="setWordAnim('cascade')">Word cascade</button>
+    <button type="button" onclick="enhance('accent_gold')">Gold accent</button>
+    <button type="button" onclick="enhance('bg_indigo')">Indigo bg</button>
+  </div>
+
+  <div id="stage" class="slide-stage"></div>
+
+  <button type="button" class="float-probe wander" id="floatProbe" title="Eleon — click for voice" onclick="toggleListen()">
+    <img src="/static/icons/icon-192.png" alt="Eleon">
+  </button>
+
+  <div class="cmd-line" id="cmdPanel">
+    <div class="rounded-2xl border border-white/15 bg-slate-900/95 px-3 py-2 flex gap-2">
+      <input id="cmd" type="text" placeholder="Command or question…" class="flex-1 rounded-xl px-3 py-2 text-slate-900 text-sm">
+      <button type="button" onclick="askEleon()" class="rounded-xl bg-teal-600 px-3 py-2 text-sm font-bold text-white">Go</button>
+    </div>
+    <p class="text-xs text-slate-400 mt-1 px-1" id="eleonReply"></p>
+    <p class="text-[10px] text-slate-500 px-1" id="probeStatus"></p>
+  </div>
+  <audio id="bgMusic" loop preload="none"></audio>
+
+  <script>
+  const ICONS = {rocket:'🚀',chart:'📊',target:'🎯',star:'⭐',globe:'🌍',idea:'💡',team:'👥',growth:'📈',shield:'🛡️',heart:'💚',book:'📘',check:'✅'};
+  const SLIDES = [
+    {% for s in slides %}
+    {
+      id: {{ s.id }},
+      title: {{ (s.title or '')|tojson }},
+      body: {{ (s.body or '')|tojson }},
+      extra: {{ (s.extra_data or '')|tojson }},
+      notes: {{ (s.notes or '')|tojson }},
+      image: {{ (s.image_path or '')|tojson }},
+      onlineImage: {{ (s.online_image_url or '')|tojson }},
+      animIn: {{ (s.animation_in or 'float3d')|tojson }},
+      bg: {{ (s.bg_color or '#0f172a')|tojson }},
+      accent: {{ (s.accent or '#14b8a6')|tojson }},
+      layout: {{ (s.layout_style or 'title_body')|tojson }},
+      icon: {{ (s.icon_name or '')|tojson }},
+      chartType: {{ (s.chart_type or '')|tojson }},
+      chartData: {{ (s.chart_data or '')|tojson }},
+      keywordAnim: {{ 'true' if s.keyword_animation else 'false' }},
+      wordAnim: {{ (s.word_animation or 'fadeUp')|tojson }},
+      pattern: {{ (s.pattern or 'gradient_teal')|tojson }},
+      imageStyle: {{ (s.image_style or 'frame')|tojson }},
+      wordEmphasis: {{ 'true' if s.word_emphasis else 'false' }},
+      imagesJson: {{ (s.images_json or '')|tojson }},
+      fontFamily: {{ (s.font_family or 'Inter')|tojson }},
+      fontSize: {{ (s.font_size or 'md')|tojson }},
+      fontColor: {{ (s.font_color or '#e2e8f0')|tojson }},
+      backdropStyle: {{ (s.backdrop_style or 'none')|tojson }},
+      chartEffect: {{ (s.chart_effect or 'grow')|tojson }},
+      showDataTable: {{ 'true' if s.show_data_table else 'false' }},
+      chartLabelMode: {{ (s.chart_label_mode or 'outside')|tojson }},
+      eleonScript: {{ (s.eleon_script or '')|tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  const PID = {{ presentation.id }};
+  const DECK_LOGO = {{ (presentation.logo_path or '')|tojson }};
+  const DECK_FOOTER = {{ (presentation.footer_text or '')|tojson }};
+  const SHARED = {{ 'true' if shared else 'false' }};
+
+  let idx = 0, phase = 'present', eleonOn = true;
+  let voiceEnabled = false, autoplay = false, speaking = false, speakToken = 0;
+  let qaTimer = null, autoChain = null, hideTimer = null;
+  let recognition = null, chartInst = null, mediaRecorder = null;
+  let keywordAnimOn = true, selectedVoice = null, musicOn = false;
+  let paceGap = 5000; // pause after slide before listening window
+  let listenWindow = 4000; // voice on window for commands
+  const bgMusic = document.getElementById('bgMusic');
+
+  /* Cursor reveals chrome */
+  function showUI() {
+    document.body.classList.add('ui-visible');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (!document.getElementById('cmdPanel').style.display || document.getElementById('cmdPanel').style.display === 'none') {
+        if (document.fullscreenElement) document.body.classList.remove('ui-visible');
+      }
+    }, 3200);
+  }
+  document.addEventListener('mousemove', showUI);
+  document.addEventListener('touchstart', showUI);
+  // default: show UI until fullscreen
+  document.body.classList.add('ui-visible');
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      document.body.classList.remove('ui-visible');
+    } else {
+      document.body.classList.add('ui-visible');
+    }
+  });
+
+  
+  
+  /* ---- Live audience (WebSocket real-time) ---- */
+  let liveToken = null;
+  let liveWs = null;
+  function wsUrl(token, role, vid, name) {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let u = proto + '//' + location.host + '/ws/live/' + token + '?role=' + encodeURIComponent(role);
+    if (vid) u += '&vid=' + encodeURIComponent(vid);
+    if (name) u += '&name=' + encodeURIComponent(name);
+    return u;
+  }
+  function ensureOnlinePanel() {
+    let panel = document.getElementById('onlinePanel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'onlinePanel';
+      panel.className = 'admit-panel chrome';
+      panel.style.top = '4rem';
+      document.body.appendChild(panel);
+    }
+    return panel;
+  }
+  function renderOnline(list) {
+    const panel = ensureOnlinePanel();
+    const admit = document.getElementById('admitPanel');
+    let html = '<p class="text-teal-300 font-semibold mb-1">Online now</p>';
+    (list || []).forEach(p => {
+      html += `<div class="mb-0.5">${p.role === 'host' ? '🎤' : '👤'} ${p.name}</div>`;
+    });
+    if (!list || !list.length) html += '<p class="text-slate-500">Connecting…</p>';
+    // keep admit section below
+    const admitHtml = admit ? admit.innerHTML : '<p class="text-teal-300 font-semibold mb-1 mt-2">Waiting to join</p><p class="text-slate-500">None</p>';
+    panel.innerHTML = html + '<div id="admitPanel" class="mt-2">' + (admit && admit.id === 'admitPanel' ? '' : '') + '</div>';
+    // re-get admit into panel
+    pollPendingHTTP();
+  }
+  async function pollPendingHTTP() {
+    if (!liveToken) return;
+    try {
+      const r = await fetch('/api/live/' + liveToken + '/state', {credentials:'same-origin'});
+      const j = await r.json();
+      let box = document.querySelector('#onlinePanel #admitPanel') || document.getElementById('admitPanel');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'admitPanel';
+        ensureOnlinePanel().appendChild(box);
+      }
+      const pending = j.pending || [];
+      box.innerHTML = '<p class="text-teal-300 font-semibold mb-1 mt-2">🔔 Join requests <span class="text-amber-300">('+(pending.length)+')</span></p>' +
+        (pending.length ? pending.map(v =>
+          `<div class="pending-card">
+            <div class="font-semibold text-white mb-1">👤 ${v.name}</div>
+            <div class="flex gap-2">
+              <button type="button" class="btn-yes" onclick="admit(${v.id},true)">Admit</button>
+              <button type="button" class="btn-no" onclick="admit(${v.id},false)">Deny</button>
+            </div>
+          </div>`).join('') : '<p class="text-slate-500 text-xs">No pending requests</p>');
+    } catch(e) {}
+  }
+  function connectHostWs() {
+    if (!liveToken) return;
+    if (liveWs) try { liveWs.close(); } catch(e) {}
+    liveWs = new WebSocket(wsUrl(liveToken, 'host'));
+    liveWs.onopen = () => {
+      document.getElementById('liveBtn').textContent = '🔗 Live';
+      syncLiveIndex();
+    };
+    liveWs.onmessage = (ev) => {
+      let msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
+      if (msg.type === 'online') renderOnline(msg.list);
+      if (msg.type === 'question') showAudienceQuestion(msg);
+      if (msg.type === 'reaction') floatReaction(msg.emoji, msg.name);
+      if (msg.type === 'voice_chunk' && msg.audio) {
+        try {
+          const bin = atob(msg.audio);
+          const arr = new Uint8Array(bin.length);
+          for (let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+          const a = new Audio(URL.createObjectURL(new Blob([arr],{type:msg.mime||'audio/webm'})));
+          a.play().catch(()=>{});
+        } catch(e) {}
+      }
+    };
+    liveWs.onclose = () => {
+      setTimeout(connectHostWs, 1500);
+    };
+    setInterval(() => { if (liveWs && liveWs.readyState === 1) liveWs.send(JSON.stringify({type:'ping'})); }, 20000);
+    setInterval(pollPendingHTTP, 4000);
+  }
+  async function startLive(){
+    const r = await fetch('/presentations/'+PID+'/live/start', {method:'POST', credentials:'same-origin'});
+    const j = await r.json();
+    if (!j.ok) { alert('Could not start live session'); return; }
+    liveToken = j.token;
+    const full = location.origin + j.url;
+    try { await navigator.clipboard.writeText(full); } catch(e) {}
+    alert('Join link copied:\\n' + full + '\\n\\nAudience open link → you admit them. Slides & Eleon audio sync in real time.');
+    connectHostWs();
+    const eb = document.getElementById('endLiveBtn');
+    if (eb) eb.classList.remove('hidden');
+  }
+  function syncLiveIndex(){
+    if (!liveToken) return;
+    const payload = { type: 'slide', index: idx };
+    if (liveWs && liveWs.readyState === 1) {
+      try { liveWs.send(JSON.stringify(payload)); } catch (e) {}
+    }
+    fetch('/api/live/'+liveToken+'/sync', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ index: idx })
+    }).catch(()=>{});
+  }
+  function broadcastSpeak(text){
+    if (liveWs && liveWs.readyState === 1 && text) {
+      liveWs.send(JSON.stringify({ type: 'speak', text: text }));
+    }
+  }
+  async function admit(vid, yes){
+    await fetch('/api/live/'+liveToken+'/admit/'+vid, {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ admit: !!yes })
+    });
+    pollPendingHTTP();
+  }
+  let currentAudQ = null;
+  function showAudienceQuestion(q){
+    if (currentAudQ === q.id) return;
+    currentAudQ = q.id;
+    let el = document.getElementById('audQ');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'audQ';
+      el.className = 'aud-q';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `<p class="text-xs text-teal-300 uppercase tracking-wide">Question from ${escapeHtml(q.name)}</p>
+      <p class="text-lg font-semibold text-white mt-1">${escapeHtml(q.text)}</p>
+      <button type="button" class="mt-3 rounded-lg bg-teal-600 px-3 py-1 text-sm font-bold" id="btnAnsQ">Eleon answer</button>
+      <button type="button" class="mt-3 ml-2 rounded-lg bg-slate-700 px-3 py-1 text-sm" onclick="dismissAudQ(${q.id})">Dismiss</button>`;
+    document.getElementById('btnAnsQ').onclick = () => eleonAnswerAudience(q.id, q.text, q.name);
+  }
+  async function eleonAnswerAudience(qid, text, name){
+    wakeProbe();
+    try {
+      const r = await fetch('/api/eleon/ask', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ question: text, presentation_id: PID, slide_index: idx, phase: 'present' })
+      });
+      const j = await r.json();
+      const ans = j.speak || 'I will follow up on that.';
+      const full = name + ' asked: ' + text + '. ' + ans;
+      broadcastSpeak(full);
+      await speak(full);
+      await fetch('/api/live/'+liveToken+'/answer/'+qid, {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ answer: ans })
+      });
+      dismissAudQ(qid);
+    } catch(e) { await speak('Could not answer just now.'); }
+  }
+  async function dismissAudQ(qid){
+    if (liveToken) {
+      await fetch('/api/live/'+liveToken+'/answer/'+qid, {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ answer: '(dismissed)' })
+      });
+    }
+    currentAudQ = null;
+    const el = document.getElementById('audQ');
+    if (el) el.remove();
+  }
+
+
+
+  
+  /* Presentation timer */
+  const presStartedAt = Date.now();
+  setInterval(() => {
+    const el = document.getElementById('presTimer');
+    if (!el) return;
+    const s = Math.floor((Date.now() - presStartedAt) / 1000);
+    el.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  }, 1000);
+
+  function floatReaction(emoji, name) {
+    const el = document.createElement('div');
+    el.className = 'react-float';
+    el.style.left = (15 + Math.random()*70) + '%';
+    el.textContent = emoji;
+    el.title = name || '';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+
+  async function endLiveSession() {
+    if (!liveToken) return;
+    if (liveWs && liveWs.readyState === 1) {
+      try { liveWs.send(JSON.stringify({ type: 'end' })); } catch(e) {}
+    }
+    await fetch('/presentations/'+PID+'/live/stop', { method:'POST', credentials:'same-origin' });
+    liveToken = null;
+    if (liveWs) try { liveWs.close(); } catch(e) {}
+    document.getElementById('liveBtn').textContent = '🔗 Join link';
+    document.getElementById('endLiveBtn').classList.add('hidden');
+    alert('Live session ended for all attendees.');
+  }
+
+  /* Push-to-talk / continuous voice share to audience */
+  let voiceShareOn = false, mediaRec = null, mediaStream = null;
+  async function toggleVoiceShare() {
+    const btn = document.getElementById('voiceShareBtn');
+    if (voiceShareOn) {
+      voiceShareOn = false;
+      try { mediaRec && mediaRec.stop(); } catch(e) {}
+      try { mediaStream && mediaStream.getTracks().forEach(tr => tr.stop()); } catch(e) {}
+      btn.textContent = '🎙 Voice share';
+      return;
+    }
+    if (!liveToken) { alert('Start Join link first.'); return; }
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRec = new MediaRecorder(mediaStream, { mimeType: 'audio/webm' });
+      mediaRec.ondataavailable = async (ev) => {
+        if (!ev.data || !ev.data.size || !liveWs || liveWs.readyState !== 1) return;
+        const buf = await ev.data.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        liveWs.send(JSON.stringify({ type: 'voice_chunk', audio: btoa(bin), mime: 'audio/webm' }));
+      };
+      mediaRec.start(800); // chunks every 800ms
+      voiceShareOn = true;
+      btn.textContent = '⏹ Stop voice';
+    } catch (e) {
+      alert('Microphone permission needed to share voice.');
+    }
+  }
+
+
+  function loadVoices() {
+    const sel = document.getElementById('voiceSelect');
+    const voices = speechSynthesis.getVoices() || [];
+    sel.innerHTML = '';
+    const lang = (document.getElementById('langSelect').value || 'en').slice(0, 2);
+    const sorted = [...voices].sort((a,b) => (b.lang.startsWith(lang)-a.lang.startsWith(lang)) || a.name.localeCompare(b.name));
+    sorted.forEach((v,i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = `${v.name} (${v.lang})`;
+      sel.appendChild(o);
+    });
+    sel._voices = sorted;
+    selectedVoice = sorted.find(v => v.lang.startsWith(lang)) || sorted[0] || null;
+  }
+  speechSynthesis.onvoiceschanged = loadVoices;
+  setTimeout(loadVoices, 300);
+  document.getElementById('voiceSelect').onchange = function() {
+    selectedVoice = (this._voices || [])[Number(this.value)] || null;
+  };
+  document.getElementById('langSelect').onchange = () => {
+    loadVoices();
+    if (recognition) {
+      try { recognition.lang = document.getElementById('langSelect').value; } catch(e) {}
+    }
+  };
+
+  function fullSlideText(s) {
+    if (!s) return '';
+    // Prefer dedicated Eleon script / notes so probe reads the full prepared talk
+    const script = (s.eleonScript || s.eleon_script || s.notes || '').trim();
+    if (script) return script;
+    const title = (s.title || '').trim();
+    const body = (s.body || '').trim();
+    if (title && body) return title + '. ' + body;
+    return title || body || '';
+  }
+  function escapeHtml(t){ return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function wordSpanHtml(text, wa) {
+    if (!text || wa === 'none') return escapeHtml(text||'');
+    return (text||'').split(/(\s+)/).map((w,i) => /^\s+$/.test(w) ? w :
+      `<span class="word wa-${wa||'fadeUp'}" style="animation-delay:${Math.min(i*0.035,2)}s">${escapeHtml(w)}</span>`).join('');
+  }
+  function parseChart(s) {
+    try { const j=JSON.parse(s.chartData||'{}'); if(j.labels&&j.values) return j; } catch(e){}
+    const labels=[], values=[];
+    (s.chartData||'').split(',').forEach(p=>{const [a,b]=p.split(':'); if(a&&b){labels.push(a.trim());values.push(Number(b));}});
+    return labels.length?{labels,values}:null;
+  }
+  function imgUrl(s){
+    const imgs = slideImages(s);
+    return imgs[0] || '';
+  }
+  function slideImages(s){
+    const out = [];
+    const push = (u) => {
+      if (!u || typeof u !== 'string') return;
+      u = u.trim();
+      if (!u) return;
+      if (out.indexOf(u) >= 0) return;
+      out.push(u);
+    };
+    if (s.imagesJson) {
+      try {
+        let arr = s.imagesJson;
+        if (typeof arr === 'string') {
+          arr = arr.trim();
+          if (arr.startsWith('[')) arr = JSON.parse(arr);
+          else if (arr) push(arr);
+        }
+        if (Array.isArray(arr)) arr.forEach(push);
+      } catch(e) { console.warn('imagesJson parse', e); }
+    }
+    push(s.image);
+    push(s.onlineImage);
+    return out;
+  }
+  function imgClass(s){
+    const st = s.imageStyle || 'frame';
+    const base = 'slide-photo ';
+    if (st === 'frame') return base + 'img-frame rounded-xl object-cover';
+    if (st === 'torn') return base + 'img-torn object-cover';
+    return base + 'img-' + st + ' object-cover';
+  }
+  function fontStyle(s){
+    const fam = s.fontFamily || 'Inter';
+    const col = s.fontColor || '#e2e8f0';
+    return 'font-family:' + String(fam).replace(/[^a-zA-Z0-9 \-_,]/g,'') + ',system-ui,sans-serif;color:' + col + ';';
+  }
+  function fontSizeClass(s){
+    return 'font-' + (s.fontSize || 'md');
+  }
+  function raceHtml(s, parsed){
+    if (!parsed) return '';
+    const max = Math.max.apply(null, parsed.values.concat([1]));
+    const accent = s.accent || '#14b8a6';
+    let h = '<div class="race-wrap" style="--accent:' + accent + '">';
+    parsed.labels.forEach(function(lab, i) {
+      const pct = Math.round((parsed.values[i] / max) * 100);
+      h += '<div class="race-row"><div class="race-label">' + lab + '</div><div class="race-track"><div class="race-bar" data-pct="' + pct + '"></div></div><div class="race-val">' + parsed.values[i] + '</div></div>';
+    });
+    return h + '</div>';
+  }
+  function tableHtml(parsed, accent){
+    if (!parsed) return '';
+    let h = '<table class="data-table-slide"><thead><tr><th>Label</th><th>Value</th></tr></thead><tbody>';
+    parsed.labels.forEach(function(lab, i) {
+      h += '<tr><td>' + lab + '</td><td style="color:' + (accent||'#5eead4') + ';font-weight:800;font-size:1.1em">' + parsed.values[i] + '</td></tr>';
+    });
+    return h + '</tbody></table>';
+  }
+  function multiStripHtml(imgs, s){
+    if (!imgs || imgs.length < 2) return '';
+    return '<div class="multi-strip">' + imgs.slice(0,6).map(function(u){
+      return '<img src="' + u + '" class="' + imgClass(s) + '" alt="" onerror="this.style.opacity=0.3">';
+    }).join('') + '</div>';
+  }
+  function backdropLayer(s, photo){
+    const style = s.backdropStyle || 'none';
+    if (!photo || style === 'none') return '';
+    const clsMap = {
+      cover: 'backdrop-layer backdrop-cover',
+      soft: 'backdrop-layer backdrop-soft',
+      torn_paper: 'backdrop-layer backdrop-torn',
+      vignette: 'backdrop-layer backdrop-vignette',
+      blur: 'backdrop-layer backdrop-blur',
+      duotone_bg: 'backdrop-layer backdrop-duotone_bg'
+    };
+    const cls = clsMap[style] || 'backdrop-layer backdrop-cover';
+    return '<div class="' + cls + '" style="background-image:url(\'' + photo.replace(/'/g, "%27") + '\')"></div>';
+  }
+  function photoHtml(s, photo, extraClass){
+    if (!photo) return '';
+    return '<img src="' + photo + '" class="' + imgClass(s) + ' ' + (extraClass||'') + '" alt="slide" loading="eager" referrerpolicy="no-referrer" onerror="this.setAttribute(\'data-failed\',\'1\')">';
+  }
+
+    function render() {
+    try {
+    const s = SLIDES[idx] || {title:'',body:'',bg:'#0f172a',accent:'#14b8a6',animIn:'fade',layout:'title_body',wordAnim:'fadeUp'};
+    keywordAnimOn = (s.wordEmphasis !== false) && (s.keywordAnim !== false);
+    const stage = document.getElementById('stage');
+    if (!stage) { console.error('no #stage'); return; }
+    const imgs = slideImages(s);
+    const photo = imgs[0] || '';
+    stage.className = 'slide-stage pat-' + (s.pattern || 'gradient_teal');
+    stage.style.backgroundColor = s.bg || '';
+    stage.style.backgroundImage = '';
+    // classic full-bleed bg when layout is image_bg OR backdrop cover without torn
+    if (s.layout === 'image_bg' && photo && (s.backdropStyle === 'none' || !s.backdropStyle)) {
+      stage.style.backgroundImage = `linear-gradient(rgba(2,6,23,.72),rgba(2,6,23,.82)),url('${photo}')`;
+      stage.style.backgroundSize = 'cover';
+    }
+    const anim = 'anim-' + (s.animIn || 'float3d');
+    const iconHtml = s.icon && ICONS[s.icon] ? `<div class="icon-pop mb-3">${ICONS[s.icon]}</div>` : '';
+    const parsed = (s.chartType || s.chartEffect === 'race' || s.showDataTable) ? parseChart(s) : null;
+    const effect = s.chartEffect || 'grow';
+    let chartBox = '';
+    if (effect === 'race' && parsed) {
+      chartBox = raceHtml(s, parsed);
+    } else if (s.chartType && parsed) {
+      const wrapCls = (effect === '3d') ? 'chart-3d-wrap chart-3d-active mt-4 h-52 sm:h-60' : 'mt-4 h-48 sm:h-52';
+      chartBox = `<div class="${wrapCls}"><canvas id="slideChart"></canvas></div>`;
+    }
+    if (s.showDataTable && parsed) {
+      chartBox += tableHtml(parsed, s.accent);
+    }
+    const brand = `<div class="brand-chip mb-2" style="color:${s.accent||'#14b8a6'}"><img src="/static/icons/icon-192.png" class="h-4 w-4 rounded" alt=""><span>Knowsoft Eleon · ${idx+1}/${SLIDES.length}</span></div>`;
+    const fstyle = fontStyle(s);
+    const fsz = fontSizeClass(s);
+    const th = wordSpanHtml(s.title, s.wordAnim);
+    const bh = wordSpanHtml(s.body, s.wordAnim);
+    const strip = multiStripHtml(imgs, s);
+    const bd = backdropLayer(s, photo);
+    let inner;
+    if (s.layout === 'image_left' && photo) {
+      inner = `${bd}<div class="slide-content-layer layout-split"><div>${photoHtml(s, photo)}</div><div style="${fstyle}">${brand}${iconHtml}<h1 class="text-2xl sm:text-4xl font-black mb-3" style="color:${s.accent||'#fff'}">${th}</h1><div class="${fsz} leading-relaxed">${bh}</div>${chartBox}${strip}</div></div>`;
+    } else if (s.layout === 'image_right' && photo) {
+      inner = `${bd}<div class="slide-content-layer layout-split"><div style="${fstyle}">${brand}${iconHtml}<h1 class="text-2xl sm:text-4xl font-black mb-3" style="color:${s.accent||'#fff'}">${th}</h1><div class="${fsz} leading-relaxed">${bh}</div>${chartBox}</div><div>${photoHtml(s, photo)}${strip}</div></div>`;
+    } else if (s.layout === 'centered' || s.layout === 'icon_hero') {
+      inner = `${bd}<div class="slide-content-layer text-center" style="${fstyle}">${brand}${iconHtml}<h1 class="text-3xl sm:text-5xl font-black mb-4" style="color:${s.accent||'#fff'}">${th}</h1><div class="${fsz} leading-relaxed max-w-3xl mx-auto">${bh}</div>${chartBox}${photo?`<div class="mt-4 flex justify-center"><img src="${photo}" class="${imgClass(s)}" referrerpolicy="no-referrer" onerror="this.style.opacity='0.4'"></div>`:''}${strip}</div>`;
+    } else if (s.layout === 'chart') {
+      inner = `${bd}<div class="slide-content-layer" style="${fstyle}">${brand}${iconHtml}<h1 class="text-2xl sm:text-4xl font-black mb-3" style="color:${s.accent||'#fff'}">${th}</h1>${chartBox}<div class="${fsz} mt-3">${bh}</div>${strip}</div>`;
+    } else if (s.layout === 'split_accent') {
+      inner = `${bd}<div class="slide-content-layer flex gap-4" style="${fstyle}"><div class="w-1.5 rounded-full flex-shrink-0" style="background:${s.accent||'#14b8a6'}"></div><div class="flex-1">${brand}${iconHtml}<h1 class="text-2xl sm:text-4xl font-black mb-3" style="color:${s.accent||'#fff'}">${th}</h1><div class="${fsz} leading-relaxed">${bh}</div>${chartBox}${photo?`<img src="${photo}" class="${imgClass(s)} mt-3" referrerpolicy="no-referrer" onerror="this.style.opacity='0.4'">`:''}${strip}</div></div>`;
+    } else {
+      // title_body + image_bg
+      const showInlineImg = !!photo && s.layout !== 'image_bg';
+      const imgBlock = showInlineImg ? ('<div class="mt-4">' + photoHtml(s, photo, 'max-h-56') + '</div>') : '';
+      inner = `${bd}<div class="slide-content-layer" style="${fstyle}">${brand}${iconHtml}<h1 class="text-2xl sm:text-4xl font-black mb-3" style="color:${s.accent||'#fff'}">${th}</h1><div class="${fsz} leading-relaxed">${bh}</div>${chartBox}${imgBlock}${strip}</div>`;
+    }
+    let extras = '';
+    if (DECK_LOGO) extras += `<img class="slide-logo" src="${DECK_LOGO}" alt="">`;
+    if (DECK_FOOTER) extras += `<div class="slide-footer">${DECK_FOOTER}</div>`;
+    else extras += `<div class="slide-footer">Knowsoft Eleon</div>`;
+    const content = document.getElementById('slideContent') || stage.querySelector('.slide-inner') || stage;
+    // Prefer dedicated content node
+    let host = document.getElementById('slideContent');
+    if (!host) {
+      // wrap stage children
+      host = stage;
+    }
+    host.innerHTML = `<div class="${anim} w-full max-w-5xl mx-auto px-4 py-6" style="color:#e2e8f0">${inner}</div>` + extras;
+    if (stage) { stage.style.minHeight = '100vh'; stage.style.display = 'flex'; }
+
+    if (chartInst) { try{chartInst.destroy()}catch(e){} chartInst=null; }
+    if (s.chartType && parsed && effect !== 'race' && document.getElementById('slideChart')) {
+      const accent = s.accent || '#14b8a6';
+      const palette = [accent, '#6366f1', '#f59e0b', '#ec4899', '#22d3ee', '#a3e635', '#f97316', '#e879f9'];
+      const animateGrow = (effect === 'grow' || effect === '3d' || !effect);
+      const is3d = (effect === '3d');
+      const wrap = document.getElementById('slideChart').parentElement;
+      if (wrap) {
+        wrap.classList.toggle('chart-3d-wrap', is3d);
+        wrap.classList.toggle('chart-3d-active', is3d);
+      }
+      const labelMode = s.chartLabelMode || 'outside';
+      const plugins = [];
+      if (window.ChartDataLabels && labelMode !== 'off') {
+        plugins.push(ChartDataLabels);
+      }
+      chartInst = new Chart(document.getElementById('slideChart'), {
+        type: s.chartType === 'polarArea' ? 'polarArea' : s.chartType,
+        data: {
+          labels: parsed.labels,
+          datasets: [{
+            label: s.title || 'Data',
+            data: parsed.values,
+            backgroundColor: s.chartType === 'line' ? accent + '44' : parsed.labels.map(function(_,i){ return palette[i%palette.length]+'cc'; }),
+            borderColor: s.chartType === 'line' ? accent : parsed.labels.map(function(_,i){ return palette[i%palette.length]; }),
+            borderWidth: 2,
+            tension: 0.35,
+            fill: s.chartType === 'line',
+            pointRadius: 5,
+            pointBackgroundColor: accent
+          }]
+        },
+        plugins: plugins,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: animateGrow ? { duration: 1800, easing: 'easeOutQuart' } : false,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 12, family: s.fontFamily || 'Inter' } } },
+            tooltip: { backgroundColor: '#0f172a', titleColor: accent, bodyColor: '#e2e8f0' },
+            datalabels: labelMode === 'off' ? { display: false } : {
+              color: '#fff',
+              font: { weight: 'bold', size: 13 },
+              backgroundColor: function(ctx) {
+                return labelMode === 'outside' ? 'rgba(15,23,42,0.75)' : 'rgba(0,0,0,0.35)';
+              },
+              borderRadius: 4,
+              padding: 4,
+              anchor: labelMode === 'inside' ? 'center' : 'end',
+              align: labelMode === 'inside' ? 'center' : 'top',
+              formatter: function(v) { return v; },
+              display: true
+            }
+          },
+          scales: (s.chartType === 'pie' || s.chartType === 'doughnut' || s.chartType === 'polarArea' || s.chartType === 'radar') ? {} : {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+    // Race animation trigger
+    if (effect === 'race') {
+      requestAnimationFrame(() => {
+        document.querySelectorAll('.race-bar').forEach((el, i) => {
+          const pct = el.getAttribute('data-pct') || 0;
+          setTimeout(() => { el.style.width = pct + '%'; }, 80 + i * 120);
+        });
+      });
+    }
+    try { if (typeof syncLiveIndex === 'function') syncLiveIndex(); } catch (e) {}
+    } catch (err) {
+      console.error('render failed', err);
+      const st = document.getElementById('stage');
+      if (st) {
+        st.style.minHeight = '100vh';
+        st.style.display = 'flex';
+        st.style.alignItems = 'center';
+        st.style.justifyContent = 'center';
+        const s = (typeof SLIDES !== 'undefined' && SLIDES[idx]) ? SLIDES[idx] : {};
+        st.innerHTML = '<div style="max-width:40rem;padding:2rem;color:#e2e8f0;font-family:system-ui">'
+          + '<p style="color:#f87171;font-size:0.85rem">Render note: ' + String(err && err.message ? err.message : err) + '</p>'
+          + '<h1 style="font-size:2rem;font-weight:900;color:#5eead4">' + (s.title || '(no title)') + '</h1>'
+          + '<pre style="white-space:pre-wrap;margin-top:1rem;font-size:1rem">' + (s.body || '') + '</pre>'
+          + ((s.image || s.onlineImage) ? ('<img src="' + (s.image || s.onlineImage) + '" style="max-height:240px;margin-top:1rem;border-radius:12px">') : '')
+          + '</div>';
+      }
+    }
+  }
+
+  function speak(text, onend) {
+    return new Promise((resolve) => {
+      const done = () => {
+        speaking = false;
+        try {
+          var fp = document.getElementById('floatProbe');
+          if (fp) fp.classList.remove('speaking-glow');
+        } catch (e) {}
+        if (musicOn && bgMusic) bgMusic.volume = 0.12;
+        if (onend) onend();
+        resolve();
+      };
+      const reply = document.getElementById('eleonReply');
+      if (reply) reply.textContent = text || '';
+      if (!text || !('speechSynthesis' in window)) { done(); return; }
+      window.speechSynthesis.cancel();
+      speakToken++;
+      const myToken = speakToken;
+      speaking = true;
+      if (musicOn && bgMusic) bgMusic.volume = 0.04;
+      // Full note — do not truncate mid-talk; chunk for browser limits
+      const clean = String(text).replace(/\s+/g, ' ').trim();
+      try { if (typeof broadcastSpeak === 'function') broadcastSpeak(clean.slice(0, 500)); } catch (e) {}
+      try {
+        var _fp = document.getElementById('floatProbe');
+        if (_fp) _fp.classList.add('speaking-glow');
+      } catch (e) {}
+
+      // Split into sentence chunks (~180–220 chars) so speech never cuts off halfway
+      const chunks = [];
+      let buf = '';
+      const parts = clean.split(/(?<=[.!?])\s+/);
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if ((buf + ' ' + part).trim().length > 200 && buf) {
+          chunks.push(buf.trim());
+          buf = part;
+        } else {
+          buf = (buf ? buf + ' ' : '') + part;
+        }
+      }
+      if (buf.trim()) chunks.push(buf.trim());
+      if (!chunks.length) chunks.push(clean.slice(0, 500) || ' ');
+
+      let ci = 0;
+      const keepAlive = setInterval(() => {
+        if (!speaking || myToken !== speakToken) { clearInterval(keepAlive); return; }
+        if (window.speechSynthesis.speaking) {
+          try { speechSynthesis.pause(); speechSynthesis.resume(); } catch (e) {}
+        }
+      }, 8000);
+
+      function speakNextChunk() {
+        if (myToken !== speakToken) { clearInterval(keepAlive); done(); return; }
+        if (ci >= chunks.length) {
+          clearInterval(keepAlive);
+          done();
+          return;
+        }
+        const u = new SpeechSynthesisUtterance(chunks[ci]);
+        u.lang = (document.getElementById('langSelect') && document.getElementById('langSelect').value) || 'en-US';
+        u.rate = 0.92;
+        if (selectedVoice) u.voice = selectedVoice;
+        u.onend = () => {
+          ci++;
+          // tiny gap between chunks so engine stays stable
+          setTimeout(speakNextChunk, 120);
+        };
+        u.onerror = () => {
+          ci++;
+          setTimeout(speakNextChunk, 200);
+        };
+        try {
+          speechSynthesis.speak(u);
+        } catch (e) {
+          clearInterval(keepAlive);
+          done();
+        }
+      }
+      speakNextChunk();
+    });
+  }
+  function stopSpeaking(){ speakToken++; speaking=false; try{speechSynthesis.cancel()}catch(e){} if(musicOn&&bgMusic) bgMusic.volume=0.12; }
+  function probeRunOut(){
+    const fp=document.getElementById('floatProbe');
+    if(!fp) return;
+    fp.classList.remove('run-in','awake','listening');
+    fp.classList.add('run-out');
+  }
+  function probeRunIn(){
+    const fp=document.getElementById('floatProbe');
+    if(!fp) return;
+    fp.classList.remove('run-out');
+    void fp.offsetWidth;
+    fp.classList.add('run-in');
+    setTimeout(()=>fp.classList.remove('run-in'),700);
+  }
+  function wakeProbe(){
+    const fp=document.getElementById('floatProbe');
+    fp.classList.remove('awake'); void fp.offsetWidth; fp.classList.add('awake');
+    setTimeout(()=>fp.classList.remove('awake'),1100);
+  }
+
+  async function readCurrent() {
+    probeRunIn();
+
+    wakeProbe();
+    const s = SLIDES[idx]; if (!s) return;
+    const text = fullSlideText(s);
+    if (!text) return;
+    await speak(text);
+  }
+
+  async function go(d) {
+    if (phase === 'closing_qa') return;
+    stopSpeaking();
+    idx = Math.max(0, Math.min(SLIDES.length-1, idx+d));
+    render();
+    syncLiveIndex();
+    if (autoplay && eleonOn) {
+      await readCurrent();
+      probeRunOut();
+      scheduleNextAfterSpeech();
+    }
+  }
+  async function gotoSlide(i) {
+    if (phase === 'closing_qa') return;
+    if (i<0||i>=SLIDES.length) return;
+    stopSpeaking(); idx=i; render();
+    syncLiveIndex();
+    if (autoplay && eleonOn) { await readCurrent(); scheduleNextAfterSpeech(); }
+  }
+  function scheduleNextAfterSpeech() {
+    if (!autoplay) return;
+    if (autoChain) clearTimeout(autoChain);
+    // After full note is spoken, wait 5 seconds, then next slide
+    const waitMs = 5000;
+    autoChain = setTimeout(async () => {
+      if (!autoplay) return;
+      if (idx >= SLIDES.length - 1) {
+        autoplay = false;
+        try {
+          document.getElementById('autoBtn').textContent = '▶ Auto-play';
+        } catch (e) {}
+        return;
+      }
+      idx += 1;
+      render();
+      try { if (typeof syncLiveIndex === 'function') syncLiveIndex(); } catch (e) {}
+      await readCurrent();
+      scheduleNextAfterSpeech();
+    }, waitMs);
+  }
+
+  function startListenQuiet(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || !window.isSecureContext) return;
+    stopListen();
+    recognition = new SR();
+    recognition.lang = document.getElementById('langSelect').value || 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onresult = (ev) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (!ev.results[i].isFinal) continue;
+        const text = (ev.results[i][0].transcript || '').trim();
+        if (text) { wakeProbe(); askEleon(text); }
+      }
+    };
+    recognition.onend = () => { if (autoplay) try { recognition.start(); } catch(e){} };
+    try { recognition.start(); } catch(e){}
+  }
+  function toggleAutoplay(force) {
+    if (typeof force === 'boolean') autoplay = force;
+    else autoplay = !autoplay;
+    document.getElementById('autoBtn').textContent = autoplay ? '⏸ Stop auto' : '▶ Auto-play';
+    if (autoChain) clearTimeout(autoChain);
+    if (autoplay) {
+      phase = 'present';
+      // soft music autoplay if not on
+      if (!musicOn) {
+        try {
+          bgMusic.src = document.getElementById('musicTrack').value;
+          bgMusic.volume = 0.12;
+          bgMusic.play().then(function(){ musicOn=true; var mb=document.getElementById('musicBtn'); if(mb) mb.textContent='🎵 On'; }).catch(function(){});
+        } catch(e){}
+      }
+      (async () => {
+        if (idx >= SLIDES.length-1) idx = 0;
+        render();
+        // voice off while reading
+        const kv = voiceEnabled;
+        if (kv) { voiceEnabled=false; stopListen(); }
+        await readCurrent();
+        probeRunOut();
+        if (kv) { voiceEnabled=true; startListen(); }
+        scheduleNextAfterSpeech();
+      })();
+    } else {
+      stopSpeaking();
+    }
+  }
+  function toggleFullscreen(){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+  function toggleMusic(){
+    if (musicOn) { bgMusic.pause(); musicOn=false; document.getElementById('musicBtn').textContent='🎵 Music'; }
+    else {
+      bgMusic.src = document.getElementById('musicTrack').value;
+      bgMusic.volume = 0.12;
+      bgMusic.play().then(()=>{ musicOn=true; document.getElementById('musicBtn').textContent='🎵 On'; }).catch(()=>{});
+    }
+  }
+  function setAnim(n){ if(SLIDES[idx]){ SLIDES[idx].animIn=n; render(); } }
+  function setWordAnim(n){ if(SLIDES[idx]){ SLIDES[idx].wordAnim=n; render(); } }
+  async function enhance(action){
+    if(SHARED) return;
+    const s=SLIDES[idx]; if(!s?.id) return;
+    const r=await fetch('/api/slides/'+s.id+'/enhance',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
+    const j=await r.json();
+    if(j.ok&&j.slide){ Object.assign(s,{accent:j.slide.accent,bg:j.slide.bg_color,animIn:j.slide.animation_in,body:j.slide.body}); render(); }
+  }
+  function goOff(){
+    eleonOn=false; voiceEnabled=false; autoplay=false;
+    stopSpeaking(); stopListen();
+    document.getElementById('floatProbe').classList.remove('listening');
+  }
+  async function startClosing(){
+    phase='closing_qa'; autoplay=false;
+    try { if (liveToken) endLiveSession(); } catch(e) {}
+    if(autoChain) clearTimeout(autoChain);
+    document.getElementById('autoBtn').textContent='▶ Auto-play';
+    const ti=SLIDES.findIndex(s=>/thank you/i.test(s.title||''));
+    if(ti>=0){ idx=ti; render(); }
+    await speak('Thank you for your attention. Any questions?');
+    if(qaTimer) clearTimeout(qaTimer);
+    qaTimer=setTimeout(async()=>{ await speak('No further questions. Goodbye.'); /* stay on, quiet */ phase='present'; },60000);
+  }
+
+  function normalizeCmd(q) {
+    let s = (q||'').toLowerCase();
+    s = s.replace(/[?.!,]+/g,' ').replace(/\s+/g,' ').trim();
+    // strip wake word anywhere at start
+    s = s.replace(/^(hey\s+)?eleon\s+/i,'').replace(/^eleon\s*/i,'').trim();
+    return s;
+  }
+  function cmdMatch(low, words) {
+    // exact or contains key phrases
+    for (const w of words) {
+      if (low === w || low.endsWith(' '+w) || low.startsWith(w+' ') || low.includes(' '+w+' ')) return true;
+    }
+    return words.some(w => low === w);
+  }
+
+  async function askEleon(qOverride){
+    if (!eleonOn) return;
+    let q = (qOverride || document.getElementById('cmd').value || '').trim();
+    if (!q) return;
+    wakeProbe();
+    const low = normalizeCmd(q);
+
+    // Local control commands first (works offline from server Q&A)
+    if (cmdMatch(low, ['stop','pause','hold','stop autoplay','stop auto play'])) {
+      toggleAutoplay(false); stopSpeaking(); await speak('Paused.');
+      document.getElementById('cmd').value=''; return;
+    }
+    if (cmdMatch(low, ['continue','resume','go on'])) {
+      await speak('Continuing.'); toggleAutoplay(true);
+      document.getElementById('cmd').value=''; return;
+    }
+    if (cmdMatch(low, ['present faster','faster','speed up'])) {
+      paceGap = Math.max(1500, paceGap - 1500);
+      listenWindow = Math.max(2000, listenWindow - 500);
+      await speak('Presenting faster.');
+      document.getElementById('cmd').value=''; return;
+    }
+    if (cmdMatch(low, ['slow down','slower','present slower'])) {
+      paceGap = Math.min(12000, paceGap + 2000);
+      listenWindow = Math.min(8000, listenWindow + 1000);
+      await speak('Slowing down.');
+      document.getElementById('cmd').value=''; return;
+    }
+    if (cmdMatch(low, ['start','begin','start autoplay','start auto play','start presentation'])) {
+      idx = 0; phase='present'; await speak('Starting presentation.'); toggleAutoplay(true);
+      document.getElementById('cmd').value=''; return;
+    }
+    if (cmdMatch(low, ['read','read slide','read the slide','read this','read this slide'])) {
+      document.getElementById('cmd').value=''; await readCurrent(); return;
+    }
+    if (cmdMatch(low, ['next','next slide','go next','forward'])) {
+      document.getElementById('cmd').value=''; await go(1); return;
+    }
+    if (cmdMatch(low, ['previous','prev','back','go back','previous slide'])) {
+      document.getElementById('cmd').value=''; await go(-1); return;
+    }
+    const goSlide = low.match(/^(go to )?slide\s*(\d+)$/);
+    if (goSlide) {
+      document.getElementById('cmd').value='';
+      await gotoSlide(Math.max(0, parseInt(goSlide[2],10)-1));
+      return;
+    }
+    if (low.includes('full screen') || low==='fullscreen') {
+      toggleFullscreen(); document.getElementById('cmd').value=''; return;
+    }
+    if (low.includes('turn off') || low === 'goodbye') {
+      await speak('Turning off.'); goOff(); document.getElementById('cmd').value=''; return;
+    }
+
+    try {
+      const r = await fetch('/api/eleon/ask', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ question: low||q, presentation_id: PID, slide_index: idx, phase })
+      });
+      const j = await r.json();
+      if (j.action === 'next') await go(1);
+      else if (j.action === 'prev') await go(-1);
+      else if (j.action === 'goto' && typeof j.index === 'number') await gotoSlide(j.index);
+      else if (j.action === 'closing') await startClosing();
+      else if (j.action === 'stop') { toggleAutoplay(false); stopSpeaking(); }
+      else if (j.action === 'continue' || j.action === 'start') { toggleAutoplay(true); }
+      else if (j.action === 'read') await readCurrent();
+      if (j.speak) {
+        await speak(j.speak);
+        // Remember Q&A for presenter
+        try {
+          fetch('/api/presentations/'+PID+'/qa-note', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ question: low||q, answer: j.speak })
+          });
+        } catch(e) {}
+      }
+    } catch (e) {
+      await speak('I could not reach the server.');
+    }
+    document.getElementById('cmd').value = '';
+  }
+
+  /* Robust voice recognition */
+  function toggleListen(){
+    const fp = document.getElementById('floatProbe');
+    const mic = document.getElementById('micBtn');
+    if (voiceEnabled) {
+      voiceEnabled = false;
+      stopListen();
+      if (mic) { mic.textContent = '🎤 Voice'; mic.classList.remove('bg-teal-700'); mic.classList.add('bg-slate-600'); }
+      fp.classList.remove('listening');
+    } else {
+      voiceEnabled = true;
+      startListen();
+      if (mic) { mic.textContent = '⏹ Voice'; mic.classList.add('bg-teal-700'); mic.classList.remove('bg-slate-600'); }
+      fp.classList.add('listening');
+      wakeProbe();
+      speak('Listening.');
+    }
+  }
+  function startListen(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      const st = document.getElementById('probeStatus');
+      if (st) st.textContent = 'Voice needs Chrome/Edge on HTTPS';
+      alert('Voice commands need Google Chrome or Edge, and the site must be HTTPS.\nClick the padlock and allow Microphone.');
+      voiceEnabled = false;
+      return;
+    }
+    if (!window.isSecureContext) {
+      alert('Microphone only works on HTTPS (or localhost). Open the Render https:// URL.');
+      voiceEnabled = false;
+      return;
+    }
+    stopListen();
+    recognition = new SR();
+    recognition.lang = document.getElementById('langSelect').value || 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
+    let lastHeard = '';
+    let lastTs = 0;
+    recognition.onresult = (ev) => {
+      if (!voiceEnabled) return;
+      let finalText = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = (ev.results[i][0].transcript || '').trim();
+        if (ev.results[i].isFinal) finalText = t;
+      }
+      if (!finalText) return;
+      // debounce duplicates
+      const now = Date.now();
+      if (finalText === lastHeard && now - lastTs < 1500) return;
+      lastHeard = finalText; lastTs = now;
+      document.getElementById('floatProbe').classList.add('listening');
+      wakeProbe();
+      const reply = document.getElementById('eleonReply');
+      if (reply) reply.textContent = 'Heard: ' + finalText;
+      askEleon(finalText);
+    };
+    recognition.onerror = (ev) => {
+      console.warn('speech error', ev.error);
+      if (ev.error === 'not-allowed') {
+        voiceEnabled = false;
+        alert('Microphone blocked. Allow mic for this site in the browser address bar.');
+        document.getElementById('floatProbe').classList.remove('listening');
+        return;
+      }
+      if (voiceEnabled && ['no-speech','aborted','network','audio-capture'].includes(ev.error)) {
+        setTimeout(() => { try { recognition.start(); } catch(e){} }, 500);
+      }
+    };
+    recognition.onend = () => {
+      if (voiceEnabled && eleonOn) {
+        setTimeout(() => { try { recognition.start(); } catch(e){} }, 250);
+      }
+    };
+    try { recognition.start(); }
+    catch(e) { setTimeout(() => { try { recognition.start(); } catch(err){} }, 400); }
+  }
+  function stopListen(){
+    try { if (recognition) { recognition.onend = null; recognition.stop(); } } catch(e){}
+    recognition = null;
+  }
+
+  document.getElementById('cmd').addEventListener('keydown', e => { if (e.key==='Enter') askEleon(); });
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+    if (e.key==='ArrowRight'||e.key===' '){ e.preventDefault(); go(1); }
+    if (e.key==='ArrowLeft'){ e.preventDefault(); go(-1); }
+    if (e.key==='f'||e.key==='F') toggleFullscreen();
+    if (e.key==='r'||e.key==='R') readCurrent();
+    if (e.key==='/'){ e.preventDefault(); const p=document.getElementById('cmdPanel'); p.style.display = p.style.display==='block'?'none':'block'; showUI(); document.getElementById('cmd').focus(); }
+  });
+
+  if (!SLIDES || !SLIDES.length) {
+    const st = document.getElementById('stage');
+    if (st) st.innerHTML = '<div style="padding:2rem;color:#fbbf24;text-align:center"><h1 style="font-size:1.5rem">No slides yet</h1><p style="color:#94a3b8">Add slides in the editor, then Present again.</p><a href="#" onclick="history.back();return false" style="color:#5eead4">Back to editor</a></div>';
+  } else {
+  
+  // Touch / finger swipe on stage → next / previous slide
+  (function () {
+    let tx = 0, ty = 0, t0 = 0;
+    const stage = document.getElementById('stage') || document.body;
+    stage.addEventListener('touchstart', function (e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      tx = e.changedTouches[0].clientX;
+      ty = e.changedTouches[0].clientY;
+      t0 = Date.now();
+    }, { passive: true });
+    stage.addEventListener('touchend', function (e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      const dx = e.changedTouches[0].clientX - tx;
+      const dy = e.changedTouches[0].clientY - ty;
+      const dt = Date.now() - t0;
+      if (dt > 800) return;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      if (dx < 0) go(1);   // swipe left → next
+      else go(-1);        // swipe right → previous
+    }, { passive: true });
+  })();
+
+  try { render(); } catch(e) { console.error(e); }
+  }
+  document.addEventListener('DOMContentLoaded', function(){ try { render(); } catch(e) {} });
+  // Prefer auto voice if secure context
+  if (window.isSecureContext && (window.SpeechRecognition||window.webkitSpeechRecognition)) {
+    // voice stays off until user enables — more reliable permission
+  }
+  </script>
+</body>
+</html>

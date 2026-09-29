@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thank you</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+  <div class="max-w-md text-center space-y-4 rounded-3xl border border-white/10 bg-slate-900/80 p-8">
+    <img src="/static/img/knowsoft-logo.png" class="h-12 mx-auto" onerror="this.src='/static/icons/icon-192.png'">
+    <h1 class="text-2xl font-bold">Thank you, {{ name }}</h1>
+    <p class="text-teal-300 text-3xl font-black">{{ score }}%</p>
+    <p class="text-sm text-slate-400">Your score for this evaluation</p>
+    {% if allow_certificates %}
+    <a class="inline-block rounded-xl bg-amber-600 px-5 py-2.5 font-bold" href="/evaluate/{{ token }}/certificate?name={{ name|urlencode }}">Download participation certificate</a>
+    {% else %}
+    <p class="text-sm text-slate-500">The presenter will share certificates if applicable.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

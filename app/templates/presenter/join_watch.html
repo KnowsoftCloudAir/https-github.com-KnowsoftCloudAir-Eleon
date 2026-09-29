@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live — {{ presentation.title if presentation else 'Eleon' }}</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    html,body{height:100%;margin:0;background:#020617;color:#fff;overflow:hidden;}
+    #stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1.25rem 1.25rem 9.5rem;}
+    .card{max-width:960px;width:100%;border-radius:1.25rem;padding:1.75rem;background:linear-gradient(145deg,rgba(15,23,42,.92),rgba(15,23,42,.75));border:1px solid rgba(45,212,191,.35);}
+    .chat{position:fixed;bottom:0;left:0;right:0;z-index:20;background:rgba(15,23,42,.96);border-top:1px solid rgba(255,255,255,.1);padding:.55rem;}
+    .online{position:fixed;top:2.5rem;right:.5rem;z-index:15;width:9rem;font-size:11px;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.12);border-radius:.75rem;padding:.5rem;max-height:35vh;overflow:auto;}
+    .react-float{position:fixed;bottom:8rem;font-size:1.75rem;animation:floatUp 2.2s ease forwards;pointer-events:none;z-index:40;}
+    @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-120px) scale(1.3)}}
+  </style>
+</head>
+<body>
+  <div class="fixed top-3 left-3 text-xs text-teal-300 z-10">
+    Live · {{ viewer.name }} · <span id="conn">…</span> · <span id="snum">1</span>
+    · <span id="timer">00:00</span>
+    · <span id="voiceInd" class="text-rose-300 hidden">🎙 live</span>
+  </div>
+  <div class="online" id="online"><p class="text-teal-300 font-semibold">Online</p></div>
+  <div id="stage"></div>
+  <div class="chat">
+    <div class="max-w-3xl mx-auto flex flex-wrap gap-1 mb-1 items-center">
+      <button type="button" class="rx text-lg" data-e="👏">👏</button>
+      <button type="button" class="rx text-lg" data-e="😂">😂</button>
+      <button type="button" class="rx text-lg" data-e="❤️">❤️</button>
+      <button type="button" class="rx text-lg" data-e="👍">👍</button>
+      <button type="button" class="rx text-lg" data-e="👎">👎</button>
+      <button type="button" class="rx text-lg" data-e="🔥">🔥</button>
+      <button type="button" id="micBtn" onclick="toggleMic()" class="ml-2 rounded-lg bg-slate-700 px-2 py-1 text-xs font-semibold">🎙 Talk</button>
+      <select id="lang" class="text-xs rounded-lg px-1 py-1 text-slate-900 ml-2">
+        <option value="">Slides only (no translate)</option>
+        <option value="es">Spanish slides</option>
+        <option value="fr">French slides</option>
+        <option value="pt">Portuguese slides</option>
+        <option value="de">German slides</option>
+        <option value="ar">Arabic slides</option>
+        <option value="yo">Yoruba slides</option>
+        <option value="ig">Igbo slides</option>
+        <option value="ha">Hausa slides</option>
+      </select>
+      <span class="text-[10px] text-slate-500">Voice stays in presenter language</span>
+    </div>
+    <div class="flex gap-2 max-w-3xl mx-auto">
+      <input id="q" type="text" placeholder="Your question…" class="flex-1 rounded-xl px-3 py-2 text-slate-900 text-sm">
+      <button type="button" onclick="sendQ()" class="rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold">Send</button>
+    </div>
+    <div class="max-w-3xl mx-auto mt-1 flex flex-wrap gap-2 items-center">
+      <a id="dlBtn" href="#" target="_blank" class="text-[11px] text-amber-300 underline">Download Eleon for better experience</a>
+    </div>
+  </div>
+  <script>
+  const TOKEN = {{ token|tojson }};
+  const NAME = {{ viewer.name|tojson }};
+  const VID = String({{ vid|tojson }});
+  let slides = [], idx = 0, ws = null, lastIdx = -1, chartInst = null;
+  let startedAt = Date.now();
+  let preferLang = localStorage.getItem('eleon_lang') || '';
+  document.getElementById('lang').value = preferLang;
+
+  function esc(t){return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  function parseChart(s){
+    try { const j=JSON.parse(s.chartData||'{}'); if(j.labels&&j.values) return j; } catch(e){}
+    const labels=[], values=[];
+    (s.chartData||'').split(',').forEach(p=>{const [a,b]=p.split(':'); if(a&&b){labels.push(a.trim());values.push(Number(b));}});
+    return labels.length?{labels,values}:null;
+  }
+  async function tr(text){
+    if (!preferLang || !text) return text;
+    try {
+      const r = await fetch('/api/translate-text', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, lang: preferLang })});
+      const j = await r.json();
+      return j.text || text;
+    } catch(e) { return text; }
+  }
+  async function applyIndex(i) {
+    if (!slides.length) return;
+    const n = Math.max(0, Math.min(slides.length - 1, Number(i) || 0));
+    idx = n; lastIdx = n;
+    const s = slides[idx] || {};
+    document.getElementById('snum').textContent = (idx + 1) + '/' + slides.length;
+    let title = s.title || '', body = s.body || '';
+    if (preferLang) { title = await tr(title); body = await tr(body); }
+    const cd = parseChart(s);
+    const chartHtml = (s.chartType && cd) ? `<div class="mt-4 h-48"><canvas id="audChart"></canvas></div>` : '';
+    const img = s.onlineImage || s.image;
+    document.getElementById('stage').innerHTML = `
+      <div class="card">
+        <p class="text-[10px] uppercase tracking-widest text-teal-300 mb-2">Knowsoft Eleon · Live</p>
+        <h1 class="text-2xl sm:text-4xl font-black mb-3">${esc(title)}</h1>
+        <div class="text-slate-200 text-base sm:text-lg whitespace-pre-wrap">${esc(body)}</div>
+        ${chartHtml}
+        ${img?`<img src="${esc(img)}" class="mt-4 max-h-40 rounded-xl mx-auto">`:''}
+      </div>`;
+    if (chartInst) { try{chartInst.destroy()}catch(e){} chartInst=null; }
+    if (s.chartType && cd && document.getElementById('audChart')) {
+      chartInst = new Chart(document.getElementById('audChart'), {
+        type: s.chartType,
+        data: { labels: cd.labels, datasets: [{ data: cd.values, backgroundColor: ['#14b8a6','#6366f1','#f59e0b','#f43f5e','#8b5cf6','#22d3ee'] }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#e2e8f0'}}},
+          scales:(s.chartType==='pie'||s.chartType==='doughnut')?{}:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}} }
+      });
+    }
+  }
+  async function speak(text){
+    // Eleon TTS: presenter language only (no translate on voice)
+    if (!text || !window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text).slice(0, 3500));
+    u.rate = 0.92;
+    speechSynthesis.speak(u);
+  }
+  function renderOnline(list){
+    document.getElementById('online').innerHTML = '<p class="text-teal-300 font-semibold mb-1">Online</p>' +
+      (list||[]).map(p => `<div>${p.role==='host'?'🎤':'👤'} ${esc(p.name)}</div>`).join('') || '—';
+  }
+  function floatReaction(emoji){
+    const el = document.createElement('div');
+    el.className = 'react-float';
+    el.style.left = (20 + Math.random()*60) + '%';
+    el.textContent = emoji;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+  function playVoiceChunk(b64, mime){
+    try {
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      const blob = new Blob([arr], {type: mime || 'audio/webm'});
+      const a = new Audio(URL.createObjectURL(blob));
+      a.play().catch(()=>{});
+    } catch(e) {}
+  }
+  function endSession(msg){
+    document.getElementById('conn').textContent = 'ended';
+    document.getElementById('stage').innerHTML = `<div class="card text-center"><h1 class="text-2xl font-bold mb-2">Session ended</h1><p class="text-slate-300">${esc(msg||'Presenter closed the live session.')}</p></div>`;
+    if (ws) try { ws.close(); } catch(e) {}
+  }
+  async function loadSlides(){
+    const r = await fetch('/api/live/'+TOKEN+'/state');
+    const j = await r.json();
+    if (!j.active) { endSession(); return j; }
+    slides = j.slides || [];
+    await applyIndex(j.index || 0);
+    return j;
+  }
+  function connect(){
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = proto+'//'+location.host+'/ws/live/'+TOKEN
+      +'?role=viewer&vid='+encodeURIComponent(VID)+'&name='+encodeURIComponent(NAME);
+    if (ws) try { ws.close(); } catch(e) {}
+    ws = new WebSocket(url);
+    ws.onopen = () => { document.getElementById('conn').textContent = 'live'; };
+    ws.onclose = () => {
+      if (document.getElementById('conn').textContent !== 'ended') {
+        document.getElementById('conn').textContent = 'reconnecting…';
+        setTimeout(connect, 1000);
+      }
+    };
+    ws.onmessage = async (ev) => {
+      let msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
+      if (msg.type === 'slide') await applyIndex(msg.index);
+      if (msg.type === 'speak') await speak(msg.text);
+      if (msg.type === 'online') renderOnline(msg.list);
+      if (msg.type === 'reaction') floatReaction(msg.emoji);
+      if (msg.type === 'voice_chunk' && msg.audio) {
+        document.getElementById('voiceInd').classList.remove('hidden');
+        playVoiceChunk(msg.audio, msg.mime);
+        setTimeout(()=>document.getElementById('voiceInd').classList.add('hidden'), 1500);
+      }
+      if (msg.type === 'ended') endSession(msg.message);
+    };
+  }
+  function sendQ(){
+    const text = document.getElementById('q').value.trim();
+    if (!text) return;
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'question', text }));
+    document.getElementById('q').value = '';
+  }
+  document.getElementById('q').addEventListener('keydown', e => { if (e.key==='Enter') sendQ(); });
+  document.querySelectorAll('.rx').forEach(btn => btn.addEventListener('click', () => {
+    floatReaction(btn.dataset.e);
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'reaction', emoji: btn.dataset.e }));
+  }));
+  document.getElementById('lang').addEventListener('change', async (e) => {
+    preferLang = e.target.value;
+    localStorage.setItem('eleon_lang', preferLang);
+    await applyIndex(idx);
+  });
+
+  let micOn=false, mediaRec=null, mediaStream=null;
+  async function toggleMic(){
+    const btn=document.getElementById('micBtn');
+    if(micOn){
+      micOn=false;
+      try{mediaRec&&mediaRec.stop()}catch(e){}
+      try{mediaStream&&mediaStream.getTracks().forEach(t=>t.stop())}catch(e){}
+      btn.textContent='🎙 Talk';
+      return;
+    }
+    try{
+      mediaStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      mediaRec=new MediaRecorder(mediaStream,{mimeType:'audio/webm'});
+      mediaRec.ondataavailable=async(ev)=>{
+        if(!ev.data||!ev.data.size||!ws||ws.readyState!==1)return;
+        const buf=await ev.data.arrayBuffer();
+        const bytes=new Uint8Array(buf);
+        let bin=''; for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+        ws.send(JSON.stringify({type:'voice_chunk',audio:btoa(bin),mime:'audio/webm'}));
+      };
+      mediaRec.start(800);
+      micOn=true;
+      btn.textContent='⏹ Mute';
+    }catch(e){alert('Allow microphone to talk.');}
+  }
+
+  setInterval(() => {
+    const s = Math.floor((Date.now()-startedAt)/1000);
+    document.getElementById('timer').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  }, 1000);
+  fetch('/api/download-links').then(r=>r.json()).then(j => { document.getElementById('dlBtn').href = j.download_url || '#'; });
+  loadSlides().then(() => {
+    connect();
+    setInterval(async () => {
+      try {
+        const r = await fetch('/api/live/'+TOKEN+'/state');
+        const j = await r.json();
+        if (!j.active) { endSession(); return; }
+        if (j.slides && j.slides.length) slides = j.slides;
+        if (typeof j.index === 'number' && j.index !== lastIdx) await applyIndex(j.index);
+      } catch(e) {}
+    }, 1000);
+  });
+  </script>
+</body>
+</html>
